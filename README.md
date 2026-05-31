@@ -25,6 +25,19 @@ npm install
 npm run dev
 ```
 
+التطبيق يستمع على `0.0.0.0:3000` (مناسب للشبكة المحلية والنشر).
+
+## رابط عام (HTTPS) — مؤقت عبر Cloudflare
+
+```bash
+npm run build
+npm run tunnel
+```
+
+سيُعرض رابط مثل `https://xxxx.trycloudflare.com`. انسخه إلى `.env.local` كـ `NEXT_PUBLIC_APP_URL` ثم أعد تشغيل السيرفر.
+
+تفاصيل النشر على VPS: `docs/DEPLOY_PUBLIC_URL.md`
+
 ## Verify
 
 ```bash

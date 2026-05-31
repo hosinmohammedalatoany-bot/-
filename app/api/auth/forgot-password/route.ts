@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createToken, readDb, writeDb } from "@/lib/server/db";
+import { getPublicAppOrigin } from "@/lib/server/app-url";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as { email?: string };
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     });
     await writeDb(db);
 
-    const resetUrl = `${new URL(request.url).origin}/reset-password?token=${token}`;
+    const resetUrl = `${getPublicAppOrigin(request)}/reset-password?token=${token}`;
     return NextResponse.json({
       ok: true,
       message: "إذا كان البريد مسجلاً، تم إنشاء رابط الاستعادة.",

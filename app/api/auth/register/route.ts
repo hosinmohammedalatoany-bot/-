@@ -10,6 +10,7 @@ import {
 import { registerableRoles, registerRoleLabelsAr } from "@/lib/server/auth-constants";
 import { registerSchema } from "@/lib/validation/register-schema";
 import { rolePermissions } from "@/lib/server/db";
+import { getPublicAppOrigin } from "@/lib/server/app-url";
 
 export async function GET() {
   const db = await readDb();
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
 
   await writeDb(db);
 
-  const origin = new URL(request.url).origin;
+  const origin = getPublicAppOrigin(request);
   const verifyUrl = `${origin}/verify-email?token=${verifyToken}`;
   const exposeVerify = process.env.VERIFY_EMAIL_IN_RESPONSE === "true" || process.env.NODE_ENV !== "production";
 
