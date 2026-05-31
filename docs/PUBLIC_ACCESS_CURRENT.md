@@ -6,8 +6,8 @@
 |--------|--------|
 | **الرابط العام** | https://olive-alberta-biographies-citizenship.trycloudflare.com |
 | تسجيل الدخول | https://olive-alberta-biographies-citizenship.trycloudflare.com/login |
-| إنشاء حساب | https://olive-alberta-biographies-citizenship.trycloudflare.com/register |
-| الإعداد الأول | https://olive-alberta-biographies-citizenship.trycloudflare.com/setup |
+| **إنشاء حساب** (يعمل مباشرة — أول حساب = مدير النظام) | https://olive-alberta-biographies-citizenship.trycloudflare.com/register |
+| إعداد بديل | https://olive-alberta-biographies-citizenship.trycloudflare.com/setup |
 | لوحة التحكم | https://olive-alberta-biographies-citizenship.trycloudflare.com/dashboard/dashboard |
 
 ## إعادة تشغيل الرابط

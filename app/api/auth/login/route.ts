@@ -71,6 +71,6 @@ export async function POST(request: Request) {
       permissions: user.permissions.length ? user.permissions : rolePermissions[user.role]
     }
   });
-  response.headers.set("Set-Cookie", sessionCookieHeader(token));
+  response.headers.set("Set-Cookie", sessionCookieHeader(token, request));
   return response;
 }

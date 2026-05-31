@@ -8,8 +8,14 @@ export function sessionMaxAgeSeconds() {
   return SESSION_HOURS * 60 * 60;
 }
 
-export function sessionCookieHeader(token: string) {
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds()}`;
+export function sessionCookieHeader(token: string, request?: Request) {
+  const forwardedProto = request?.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const isSecure =
+    forwardedProto === "https" ||
+    (typeof process.env.NEXT_PUBLIC_APP_URL === "string" &&
+      process.env.NEXT_PUBLIC_APP_URL.startsWith("https://"));
+  const secure = isSecure ? "; Secure" : "";
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds()}${secure}`;
 }
 
 export function parseSessionToken(cookieHeader: string | null): string | null {

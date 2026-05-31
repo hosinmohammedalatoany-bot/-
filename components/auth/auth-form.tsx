@@ -30,7 +30,7 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
       const data = (await response.json()) as { error?: string; needsSetup?: boolean; user?: unknown };
       if (!response.ok) {
         if (data.needsSetup) {
-          router.push("/setup");
+          router.push("/register");
           return;
         }
         setMessage({ type: "err", text: data.error ?? ar.error });
@@ -132,14 +132,18 @@ export function SetupForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, phone, password, branch })
     });
-    const data = (await response.json()) as { error?: string; message?: string };
+    const data = (await response.json()) as { error?: string; message?: string; user?: unknown };
     setLoading(false);
     if (!response.ok) {
       setMessage(data.error ?? ar.error);
       return;
     }
+    if (data.user) {
+      localStorage.setItem("br_user", JSON.stringify(data.user));
+    }
     setMessage(data.message ?? ar.success);
-    setTimeout(() => router.push("/login"), 800);
+    router.push("/dashboard/dashboard");
+    router.refresh();
   }
 
   return (
@@ -220,6 +224,7 @@ export function ForgotPasswordForm() {
 export function RegisterForm() {
   const router = useRouter();
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [firstSetup, setFirstSetup] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -232,14 +237,14 @@ export function RegisterForm() {
   useEffect(() => {
     fetch("/api/auth/register")
       .then((r) => r.json())
-      .then((data: { setupCompleted?: boolean; open?: boolean; message?: string }) => {
-        if (data.setupCompleted === false) {
-          router.replace("/setup");
-          return;
-        }
+      .then((data: { setupCompleted?: boolean; open?: boolean; firstSetup?: boolean; message?: string }) => {
+        setFirstSetup(Boolean(data.firstSetup) || data.setupCompleted === false);
         setRegistrationOpen(data.open !== false);
-        if (data.open === false) {
+        if (data.open === false && data.setupCompleted !== false) {
           setMessage({ type: "err", text: data.message ?? "التسجيل مغلق حالياً." });
+        }
+        if (data.firstSetup && data.message) {
+          setMessage({ type: "ok", text: data.message });
         }
       })
       .catch(() => setMessage({ type: "err", text: "تعذر تحميل إعدادات التسجيل." }));
@@ -288,8 +293,12 @@ export function RegisterForm() {
       <div className="luxury-panel rounded-[2rem] p-8">
         <BrandLogo />
         <h1 className="mt-6 text-center text-2xl font-black text-white">{ar.appFullName}</h1>
-        <p className="mt-2 text-center text-sm text-white/55">{ar.registerTitle}</p>
-        <p className="mt-1 text-center text-xs text-white/45">{ar.registerHint}</p>
+        <p className="mt-2 text-center text-sm text-white/55">
+          {firstSetup ? "إنشاء أول حساب (مدير النظام)" : ar.registerTitle}
+        </p>
+        <p className="mt-1 text-center text-xs text-white/45">
+          {firstSetup ? "بعد التسجيل تُفعَّل الحساب فوراً وتنتقل إلى لوحة التحكم." : ar.registerHint}
+        </p>
         <form className="mt-6 grid gap-3" onSubmit={onSubmit} noValidate={registrationOpen === false}>
           <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
           <input className={inputClass} type="email" placeholder={ar.email} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />

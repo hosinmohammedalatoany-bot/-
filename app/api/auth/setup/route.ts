@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { appendAuditLog, createToken, hashPassword, isStrongPassword, readDb, rolePermissions, writeDb, type DbUser } from "@/lib/server/db";
 import { defaultBranches } from "@/lib/server/auth-constants";
+import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 export async function GET() {
   const db = await readDb();
@@ -67,7 +68,31 @@ export async function POST(request: Request) {
     details: `إعداد المدير العام الأول: ${user.name}`
   });
 
+  const token = createToken();
+  const expiresAt = new Date(Date.now() + sessionMaxAgeSeconds() * 1000).toISOString();
+  db.sessions.push({
+    token,
+    userId: user.id,
+    createdAt: now,
+    expiresAt
+  });
+
   await writeDb(db);
 
-  return NextResponse.json({ ok: true, message: "تم إنشاء المدير العام بنجاح." });
+  const sessionUser = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    branch: user.branch,
+    permissions: user.permissions
+  };
+
+  const response = NextResponse.json({
+    ok: true,
+    message: "تم إنشاء المدير العام بنجاح. جاري تحويلك إلى لوحة التحكم.",
+    user: sessionUser
+  });
+  response.headers.set("Set-Cookie", sessionCookieHeader(token, request));
+  return response;
 }

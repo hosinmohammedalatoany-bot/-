@@ -15,25 +15,24 @@ import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session"
 export async function GET() {
   const db = await readDb();
   if (!db.setupCompleted) {
-    return NextResponse.json(
-      { open: false, setupCompleted: false, message: "يجب إعداد المدير العام أولاً." },
-      { status: 403 }
-    );
+    return NextResponse.json({
+      open: true,
+      setupCompleted: false,
+      firstSetup: true,
+      message: "أنشئ أول حساب — سيصبح مدير النظام ويُفعَّل فوراً."
+    });
   }
   return NextResponse.json({
     open: db.registrationOpen,
-    setupCompleted: true
+    setupCompleted: true,
+    firstSetup: false
   });
 }
 
 export async function POST(request: Request) {
   const db = await readDb();
 
-  if (!db.setupCompleted) {
-    return NextResponse.json({ error: "يجب إعداد المدير العام أولاً عبر صفحة الإعداد." }, { status: 403 });
-  }
-
-  if (!db.registrationOpen) {
+  if (db.setupCompleted && !db.registrationOpen) {
     return NextResponse.json({ error: "التسجيل مغلق حالياً. تواصل مع المدير العام." }, { status: 403 });
   }
 
@@ -60,7 +59,8 @@ export async function POST(request: Request) {
   const branches = db.branches?.length ? db.branches : [...defaultBranches];
   const defaultBranch = branches[0] ?? "الفرع الرئيسي";
   const hasSuperAdmin = db.users.some((u) => u.role === "super-admin");
-  const role = hasSuperAdmin ? "sales" : "super-admin";
+  const isFirstAccount = !db.setupCompleted || !hasSuperAdmin;
+  const role = isFirstAccount ? "super-admin" : "sales";
 
   const userId = createToken().slice(0, 12);
   const now = new Date().toISOString();
@@ -82,6 +82,14 @@ export async function POST(request: Request) {
   };
 
   db.users.push(user);
+
+  if (isFirstAccount) {
+    db.setupCompleted = true;
+    db.branches = db.branches?.length ? db.branches : [...defaultBranches];
+    if (!db.branches.includes(defaultBranch)) {
+      db.branches.unshift(defaultBranch);
+    }
+  }
 
   const token = createToken();
   const expiresAt = new Date(Date.now() + sessionMaxAgeSeconds() * 1000).toISOString();
@@ -117,6 +125,6 @@ export async function POST(request: Request) {
     status: "active",
     user: sessionUser
   });
-  response.headers.set("Set-Cookie", sessionCookieHeader(token));
+  response.headers.set("Set-Cookie", sessionCookieHeader(token, request));
   return response;
 }
