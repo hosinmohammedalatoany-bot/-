@@ -25,9 +25,14 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, rememberMe: remember })
       });
-      const data = (await response.json()) as { error?: string; needsSetup?: boolean; user?: unknown };
+      const data = (await response.json()) as {
+        error?: string;
+        needsSetup?: boolean;
+        mustChangePassword?: boolean;
+        user?: unknown;
+      };
       if (!response.ok) {
         if (data.needsSetup) {
           router.push("/register");
@@ -39,8 +44,12 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
       if (remember && data.user) {
         localStorage.setItem("br_user", JSON.stringify(data.user));
       }
-      setMessage({ type: "ok", text: ar.success });
-      router.push(nextPath || "/dashboard/dashboard");
+      setMessage({ type: "ok", text: "تم تسجيل الدخول بنجاح." });
+      if (data.mustChangePassword) {
+        router.push("/dashboard/settings");
+      } else {
+        router.push(nextPath || "/dashboard/dashboard");
+      }
       router.refresh();
     } catch {
       setMessage({ type: "err", text: "تعذر الاتصال بالخادم." });
@@ -269,16 +278,20 @@ export function RegisterForm() {
       const data = (await response.json()) as {
         error?: string;
         message?: string;
+        status?: string;
         user?: unknown;
       };
       if (!response.ok) {
         setMessage({ type: "err", text: data.error ?? ar.error });
         return;
       }
-      if (data.user) {
-        localStorage.setItem("br_user", JSON.stringify(data.user));
-      }
       setMessage({ type: "ok", text: data.message ?? ar.success });
+      if (data.status === "pending-approval" || !data.user) {
+        router.push("/login");
+        router.refresh();
+        return;
+      }
+      localStorage.setItem("br_user", JSON.stringify(data.user));
       router.push("/dashboard/dashboard");
       router.refresh();
     } catch {
@@ -297,7 +310,9 @@ export function RegisterForm() {
           {firstSetup ? "إنشاء أول حساب (مدير النظام)" : ar.registerTitle}
         </p>
         <p className="mt-1 text-center text-xs text-white/45">
-          {firstSetup ? "بعد التسجيل تُفعَّل الحساب فوراً وتنتقل إلى لوحة التحكم." : ar.registerHint}
+          {firstSetup
+            ? "بعد التسجيل تُفعَّل الحساب فوراً وتنتقل إلى لوحة التحكم."
+            : "بعد التسجيل ينتظر حسابك موافقة المدير قبل الدخول."}
         </p>
         <form className="mt-6 grid gap-3" onSubmit={onSubmit} noValidate={registrationOpen === false}>
           <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />

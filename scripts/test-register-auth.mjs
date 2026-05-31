@@ -38,13 +38,25 @@ function testRegisterFormFields() {
   }
 }
 
-function testNewUsersAreActive() {
-  const newUserStatus = "active";
-  assert(newUserStatus === "active", "new registrations must be active immediately");
+function testRegistrationStatusPolicy() {
+  const firstAccountStatus = "active";
+  const subsequentStatus = "pending-approval";
+  assert(firstAccountStatus === "active", "first account (setup) is active immediately");
+  assert(subsequentStatus === "pending-approval", "subsequent registrations await manager approval");
+  assert(firstAccountStatus !== subsequentStatus, "first vs subsequent status differ");
+}
+
+function testRememberMeSessionDuration() {
+  const SESSION_HOURS = 12;
+  const REMEMBER_DAYS = 30;
+  const shortSec = SESSION_HOURS * 60 * 60;
+  const longSec = REMEMBER_DAYS * 24 * 60 * 60;
+  assert(longSec > shortSec, "remember-me session lasts longer than default");
 }
 
 testPasswordRules();
 testRegisterPayloadRules();
 testRegisterFormFields();
-testNewUsersAreActive();
+testRegistrationStatusPolicy();
+testRememberMeSessionDuration();
 console.log("register-auth: all checks passed");

@@ -3,19 +3,23 @@ import { readDb, type DbUser } from "@/lib/server/db";
 
 const SESSION_COOKIE = "br_session";
 const SESSION_HOURS = 12;
+const REMEMBER_DAYS = 30;
 
-export function sessionMaxAgeSeconds() {
+export function sessionMaxAgeSeconds(rememberMe = false) {
+  if (rememberMe) {
+    return REMEMBER_DAYS * 24 * 60 * 60;
+  }
   return SESSION_HOURS * 60 * 60;
 }
 
-export function sessionCookieHeader(token: string, request?: Request) {
+export function sessionCookieHeader(token: string, request?: Request, rememberMe = false) {
   const forwardedProto = request?.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const isSecure =
     forwardedProto === "https" ||
     (typeof process.env.NEXT_PUBLIC_APP_URL === "string" &&
       process.env.NEXT_PUBLIC_APP_URL.startsWith("https://"));
   const secure = isSecure ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds()}${secure}`;
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds(rememberMe)}${secure}`;
 }
 
 export function parseSessionToken(cookieHeader: string | null): string | null {

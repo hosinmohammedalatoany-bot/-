@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { loginStatusMessagesAr } from "@/lib/server/auth-constants";
-import { createToken, readDb, rolePermissions, verifyPassword, writeDb } from "@/lib/server/db";
+import {
+  appendAuditLog,
+  createToken,
+  readDb,
+  rolePermissions,
+  verifyPassword,
+  writeDb
+} from "@/lib/server/db";
 import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 const MAX_ATTEMPTS = 5;
@@ -12,9 +19,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "يجب إعداد المدير الأول أولاً.", needsSetup: true }, { status: 403 });
   }
 
-  const body = (await request.json()) as { email?: string; password?: string };
+  const body = (await request.json()) as { email?: string; password?: string; rememberMe?: boolean };
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";
+  const rememberMe = body.rememberMe === true;
 
   if (!email || !password) {
     return NextResponse.json({ error: "أدخل البريد الإلكتروني وكلمة المرور." }, { status: 400 });
@@ -22,7 +30,13 @@ export async function POST(request: Request) {
 
   const user = db.users.find((item) => item.email === email);
   if (!user) {
-    return NextResponse.json({ error: "بيانات الدخول غير صحيحة." }, { status: 401 });
+    await appendAuditLog(db, {
+      action: "auth.login-failed",
+      actorEmail: email,
+      details: "محاولة دخول ببريد غير مسجل"
+    });
+    await writeDb(db);
+    return NextResponse.json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." }, { status: 401 });
   }
 
   if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
@@ -34,8 +48,14 @@ export async function POST(request: Request) {
     if (user.failedAttempts >= MAX_ATTEMPTS) {
       user.lockedUntil = new Date(Date.now() + LOCK_MINUTES * 60 * 1000).toISOString();
     }
+    await appendAuditLog(db, {
+      action: "auth.login-failed",
+      actorId: user.id,
+      actorEmail: user.email,
+      details: `محاولة دخول فاشلة (${user.failedAttempts})`
+    });
     await writeDb(db);
-    return NextResponse.json({ error: "بيانات الدخول غير صحيحة." }, { status: 401 });
+    return NextResponse.json({ error: "البريد الإلكتروني أو كلمة المرور غير صحيحة." }, { status: 401 });
   }
 
   if (user.status !== "active") {
@@ -47,10 +67,11 @@ export async function POST(request: Request) {
 
   user.failedAttempts = 0;
   user.lockedUntil = undefined;
+  user.lastLoginAt = new Date().toISOString();
 
   const token = createToken();
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + sessionMaxAgeSeconds() * 1000).toISOString();
+  const expiresAt = new Date(now.getTime() + sessionMaxAgeSeconds(rememberMe) * 1000).toISOString();
   db.sessions = db.sessions.filter((s) => s.userId !== user.id || new Date(s.expiresAt) > now);
   db.sessions.push({
     token,
@@ -58,10 +79,18 @@ export async function POST(request: Request) {
     createdAt: now.toISOString(),
     expiresAt
   });
+  await appendAuditLog(db, {
+    action: "auth.login",
+    actorId: user.id,
+    actorEmail: user.email,
+    details: "تسجيل دخول ناجح"
+  });
+
   await writeDb(db);
 
   const response = NextResponse.json({
     ok: true,
+    mustChangePassword: user.mustChangePassword ?? false,
     user: {
       id: user.id,
       email: user.email,
@@ -71,6 +100,6 @@ export async function POST(request: Request) {
       permissions: user.permissions.length ? user.permissions : rolePermissions[user.role]
     }
   });
-  response.headers.set("Set-Cookie", sessionCookieHeader(token, request));
+  response.headers.set("Set-Cookie", sessionCookieHeader(token, request, rememberMe));
   return response;
 }

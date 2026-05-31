@@ -65,6 +65,8 @@ export async function POST(request: Request) {
   const userId = createToken().slice(0, 12);
   const now = new Date().toISOString();
 
+  const status = isFirstAccount ? "active" : "pending-approval";
+
   const user: DbUser = {
     id: userId,
     email,
@@ -73,12 +75,12 @@ export async function POST(request: Request) {
     phone: data.phone.trim(),
     role,
     branch: defaultBranch,
-    status: "active",
+    status,
     emailVerified: true,
-    permissions: rolePermissions[role],
+    permissions: isFirstAccount ? rolePermissions[role] : rolePermissions["read-only"],
     failedAttempts: 0,
     createdAt: now,
-    approvedAt: now
+    ...(isFirstAccount ? { approvedAt: now } : {})
   };
 
   db.users.push(user);
@@ -89,6 +91,34 @@ export async function POST(request: Request) {
     if (!db.branches.includes(defaultBranch)) {
       db.branches.unshift(defaultBranch);
     }
+  } else {
+    db.adminNotifications.unshift({
+      id: createToken().slice(0, 12),
+      type: "user-registration",
+      userId,
+      message: `طلب حساب جديد: ${user.name} (${email})`,
+      createdAt: now,
+      read: false
+    });
+  }
+
+  await appendAuditLog(db, {
+    action: "user.register",
+    targetId: userId,
+    targetEmail: email,
+    details: isFirstAccount
+      ? `تسجيل المدير الأول — ${user.name}`
+      : `تسجيل حساب بانتظار الموافقة — ${user.name}`
+  });
+
+  await writeDb(db);
+
+  if (!isFirstAccount) {
+    return NextResponse.json({
+      ok: true,
+      message: "تم إنشاء الحساب، بانتظار موافقة المدير.",
+      status: "pending-approval"
+    });
   }
 
   const token = createToken();
@@ -100,14 +130,6 @@ export async function POST(request: Request) {
     createdAt: now,
     expiresAt
   });
-
-  await appendAuditLog(db, {
-    action: "user.register",
-    targetId: userId,
-    targetEmail: email,
-    details: `تسجيل حساب جديد وتفعيل مباشر — ${user.name}`
-  });
-
   await writeDb(db);
 
   const sessionUser = {
@@ -116,7 +138,7 @@ export async function POST(request: Request) {
     name: user.name,
     role: user.role,
     branch: user.branch,
-    permissions: user.permissions.length ? user.permissions : rolePermissions[user.role]
+    permissions: user.permissions
   };
 
   const response = NextResponse.json({

@@ -23,6 +23,8 @@ export interface DbUser {
   termsAcceptedAt?: string;
   approvedAt?: string;
   approvedBy?: string;
+  mustChangePassword?: boolean;
+  lastLoginAt?: string;
 }
 
 export interface DbSession {
@@ -118,18 +120,28 @@ function normalizeDb(db: ServerDb): ServerDb {
     ...user,
     phone: user.phone ?? "",
     status: user.status ?? (user.role === "super-admin" ? "active" : "active"),
-    emailVerified: user.emailVerified ?? true
+    emailVerified: user.emailVerified ?? true,
+    mustChangePassword: user.mustChangePassword ?? false
   }));
   return db;
 }
 
 export async function readDb(): Promise<ServerDb> {
+  let db: ServerDb;
   try {
     const raw = await readFile(DB_PATH, "utf8");
-    return normalizeDb(JSON.parse(raw) as ServerDb);
+    db = normalizeDb(JSON.parse(raw) as ServerDb);
   } catch {
-    return { ...emptyDb };
+    db = { ...emptyDb };
   }
+
+  const { maybeBootstrapFromEnv } = await import("@/lib/server/bootstrap");
+  const bootstrapped = await maybeBootstrapFromEnv(db);
+  if (bootstrapped !== db) {
+    await writeDb(bootstrapped);
+    return bootstrapped;
+  }
+  return db;
 }
 
 export async function appendAuditLog(

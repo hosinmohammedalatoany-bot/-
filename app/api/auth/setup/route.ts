@@ -51,7 +51,8 @@ export async function POST(request: Request) {
     permissions: rolePermissions["super-admin"],
     failedAttempts: 0,
     createdAt: now,
-    approvedAt: now
+    approvedAt: now,
+    mustChangePassword: false
   };
 
   db.users.push(user);

@@ -1,0 +1,16 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1024" height="1024" rx="224" fill="#070707"/>
+  <rect x="38" y="38" width="948" height="948" rx="190" stroke="#D6A84F" stroke-width="28" stroke-opacity=".42"/>
+  <path d="M169 590C226 430 335 335 498 291C666 246 818 291 914 414C762 362 613 365 462 420C578 404 700 422 821 482C890 517 941 578 958 652H169Z" fill="url(#gold)"/>
+  <path d="M248 694H799" stroke="#FFF8D6" stroke-width="54" stroke-linecap="round"/>
+  <path d="M345 742C345 788.944 306.944 827 260 827C213.056 827 175 788.944 175 742C175 695.056 213.056 657 260 657C306.944 657 345 695.056 345 742Z" stroke="#D6A84F" stroke-width="42"/>
+  <path d="M846 742C846 788.944 807.944 827 761 827C714.056 827 676 788.944 676 742C676 695.056 714.056 657 761 657C807.944 657 846 695.056 846 742Z" stroke="#D6A84F" stroke-width="42"/>
+  <path d="M270 266L367 168H649L756 266H270Z" fill="#F3C96B" fill-opacity=".16"/>
+  <defs>
+    <linearGradient id="gold" x1="169" y1="291" x2="958" y2="652" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8D6"/>
+      <stop offset=".46" stop-color="#F3C96B"/>
+      <stop offset="1" stop-color="#8E682E"/>
+    </linearGradient>
+  </defs>
+</svg>

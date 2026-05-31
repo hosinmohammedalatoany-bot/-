@@ -1,8 +1,8 @@
 import type { ModuleKey } from "@/lib/domain";
 
 export const ar = {
-  appName: "براء رائد",
-  appFullName: "نظام إدارة معرض براء رائد للسيارات",
+  appName: "baraa raed",
+  appFullName: "baraa raed لإدارة معارض السيارات",
   ownedErp: "نظام مملوك بالكامل للمعرض",
   login: "تسجيل الدخول",
   logout: "تسجيل الخروج",
