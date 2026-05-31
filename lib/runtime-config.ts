@@ -35,6 +35,18 @@ export function isCloudflareTunnelHost(host: string): boolean {
   return h.endsWith(".trycloudflare.com");
 }
 
+/** Official production hosts — use PUBLIC_BASE_URL / API_BASE_URL from env when set. */
+export function isOfficialProductionHost(host: string): boolean {
+  const h = host.split(":")[0]?.toLowerCase() ?? "";
+  return h === "powerxerp.com" || h.endsWith(".powerxerp.com");
+}
+
+/** Shown when env URL differs from live trycloudflare.com origin (informational, not an error). */
+export const CLOUDFLARE_TUNNEL_ORIGIN_INFO_AR = [
+  "PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL لا يطابق الرابط الحالي.",
+  "تم اكتشاف Cloudflare Tunnel، لذلك سيتم استخدام الرابط الحالي تلقائياً."
+] as const;
+
 export function isLocalHostname(host: string): boolean {
   const h = host.split(":")[0]?.toLowerCase() ?? "";
   return LOCAL_HOST_PATTERNS.some((re) => re.test(h));
@@ -92,9 +104,20 @@ export function resolvePublicAppOrigin(request?: Request): string {
   if (fromRequest) {
     try {
       const reqHost = new URL(fromRequest).host;
+
+      // Cloudflare quick tunnel: always the URL in the browser (changes every run).
       if (isCloudflareTunnelHost(reqHost)) {
         return fromRequest;
       }
+
+      // Official production: prefer configured public URL when it matches production domain.
+      if (fromEnv && isOfficialProductionHost(reqHost)) {
+        const envHost = new URL(fromEnv).host;
+        if (isOfficialProductionHost(envHost)) {
+          return fromEnv;
+        }
+      }
+
       if (fromEnv) {
         const envHost = new URL(fromEnv).host;
         if (envHost !== reqHost) {
@@ -133,6 +156,18 @@ export function resolveApiBaseUrl(clientOrigin?: string): string {
   const fromEnv = readEnvApiBaseUrl();
   const origin = clientOrigin ?? resolveClientAppOrigin();
 
+  if (origin) {
+    try {
+      const host = new URL(origin).host;
+      // Quick tunnel: API on same origin unless you explicitly split hosts in production.
+      if (isCloudflareTunnelHost(host)) {
+        return "";
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (fromEnv && origin && fromEnv.replace(/\/$/, "") === origin.replace(/\/$/, "")) {
     return "";
   }
@@ -153,6 +188,9 @@ export type RuntimeConfigPayload = {
   configuredPublicBaseUrl: string | null;
   configuredApiBaseUrl: string | null;
   isCloudflareTunnel: boolean;
+  /** Informational only (e.g. env ≠ live tunnel URL — expected behavior). */
+  info: string[];
+  /** Real misconfiguration (localhost in prod env, etc.). */
   warnings: string[];
 };
 
@@ -160,34 +198,61 @@ export function buildRuntimeConfig(request?: Request): RuntimeConfigPayload {
   const configuredPublic = readEnvPublicBaseUrl() ?? null;
   const configuredApi = readEnvApiBaseUrl() ?? null;
   const requestOrigin = request ? resolveOriginFromRequest(request) : null;
-  const publicBase = requestOrigin ?? configuredPublic ?? "";
-  const apiBase = configuredApi ?? "";
+  let host = "";
+  if (requestOrigin) {
+    try {
+      host = new URL(requestOrigin).host;
+    } catch {
+      host = "";
+    }
+  }
+  const isTunnel = isCloudflareTunnelHost(host);
+
+  const publicBase = isTunnel && requestOrigin
+    ? requestOrigin
+    : requestOrigin ?? configuredPublic ?? "";
+
+  const apiBase = isTunnel ? "" : configuredApi ?? "";
+
+  const info: string[] = [];
   const warnings: string[] = [];
 
   if (requestOrigin && configuredPublic) {
     try {
-      if (new URL(configuredPublic).host !== new URL(requestOrigin).host) {
-        warnings.push(
-          "PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL لا يطابق الرابط الحالي — يُستخدم origin الحالي (مناسب لـ Cloudflare Tunnel)."
-        );
+      const envHost = new URL(configuredPublic).host;
+      const liveHost = new URL(requestOrigin).host;
+      if (envHost !== liveHost) {
+        if (isTunnel) {
+          info.push(...CLOUDFLARE_TUNNEL_ORIGIN_INFO_AR);
+        } else {
+          warnings.push(
+            "PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL لا يطابق الرابط الحالي — يُستخدم origin الحالي."
+          );
+        }
       }
     } catch {
       /* ignore */
     }
   }
 
-  if (configuredPublic && isLocalUrl(configuredPublic) && requestOrigin && !isLocalUrl(requestOrigin)) {
+  if (
+    configuredPublic &&
+    isLocalUrl(configuredPublic) &&
+    requestOrigin &&
+    !isLocalUrl(requestOrigin) &&
+    !isTunnel
+  ) {
     warnings.push("تم اكتشاف رابط محلي في إعدادات الإنتاج (localhost / 127.0.0.1 / 192.168.x.x).");
   }
 
-  const host = requestOrigin ? new URL(requestOrigin).host : "";
   return {
     publicBaseUrl: publicBase,
     apiBaseUrl: apiBase,
     useSameOriginApi: !apiBase,
     configuredPublicBaseUrl: configuredPublic,
     configuredApiBaseUrl: configuredApi,
-    isCloudflareTunnel: isCloudflareTunnelHost(host),
+    isCloudflareTunnel: isTunnel,
+    info,
     warnings
   };
 }
