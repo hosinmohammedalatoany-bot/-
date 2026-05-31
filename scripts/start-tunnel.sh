@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PORT="${PORT:-4173}"
+PORT="${PORT:-3000}"
 HOST="127.0.0.1"
 
 free_port() {
