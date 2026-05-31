@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ar } from "@/lib/i18n/ar";
-import { exportHtmlAsPdf, exportTableCsv, printHtml } from "@/lib/print";
+import { exportHtmlAsPdf, exportTableCsv, previewPrintHtml, printHtml } from "@/lib/print";
 import { SecondaryButton } from "@/components/ui/primitives";
 
 export function PrintToolbar({
@@ -20,57 +20,84 @@ export function PrintToolbar({
   csvRows?: (string | number)[][];
   onPrinted?: () => void;
 }) {
-  const [busy, setBusy] = useState<"print" | "pdf" | "csv" | null>(null);
+  const [busy, setBusy] = useState<"print" | "preview" | "pdf" | "csv" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function run(action: "print" | "pdf" | "csv", fn: () => void | Promise<void>) {
+  async function run(
+    action: "print" | "preview" | "pdf" | "csv",
+    fn: () => void | Promise<void>
+  ) {
     if (busy) return;
     setBusy(action);
+    setError(null);
     try {
       await fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ar.error;
+      setError(msg);
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <div className="no-print flex flex-wrap gap-2">
-      <SecondaryButton
-        loading={busy === "print"}
-        disabled={Boolean(busy)}
-        onClick={() =>
-          void run("print", async () => {
-            printHtml({ title, html: printHtmlBody, onPrinted });
-          })
-        }
-      >
-        {ar.print}
-      </SecondaryButton>
-      <SecondaryButton
-        loading={busy === "pdf"}
-        disabled={Boolean(busy)}
-        onClick={() =>
-          void run("pdf", async () => {
-            exportHtmlAsPdf(`${title}.pdf`, printHtmlBody);
-            onPrinted?.();
-          })
-        }
-      >
-        {ar.pdf}
-      </SecondaryButton>
-      {csvHeaders && csvRows && csvFilename && (
+    <div className="no-print flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">
         <SecondaryButton
-          loading={busy === "csv"}
+          loading={busy === "print"}
           disabled={Boolean(busy)}
           onClick={() =>
-            void run("csv", async () => {
-              exportTableCsv(csvFilename, csvHeaders, csvRows);
+            void run("print", async () => {
+              printHtml({
+                title,
+                html: printHtmlBody,
+                onPrinted,
+                onError: setError
+              });
+            })
+          }
+        >
+          {ar.print}
+        </SecondaryButton>
+        <SecondaryButton
+          loading={busy === "preview"}
+          disabled={Boolean(busy)}
+          onClick={() =>
+            void run("preview", async () => {
+              previewPrintHtml({ title, html: printHtmlBody });
+            })
+          }
+        >
+          {ar.printPreview}
+        </SecondaryButton>
+        <SecondaryButton
+          loading={busy === "pdf"}
+          disabled={Boolean(busy)}
+          onClick={() =>
+            void run("pdf", async () => {
+              exportHtmlAsPdf(`${title}.pdf`, printHtmlBody);
               onPrinted?.();
             })
           }
         >
-          {ar.excel}
+          {ar.pdf}
         </SecondaryButton>
-      )}
+        {csvHeaders && csvRows && csvFilename && (
+          <SecondaryButton
+            loading={busy === "csv"}
+            disabled={Boolean(busy)}
+            onClick={() =>
+              void run("csv", async () => {
+                exportTableCsv(csvFilename, csvHeaders, csvRows);
+                onPrinted?.();
+              })
+            }
+          >
+            {ar.excel}
+          </SecondaryButton>
+        )}
+      </div>
+      {error ? <p className="text-xs text-red-300">{error}</p> : null}
     </div>
   );
 }

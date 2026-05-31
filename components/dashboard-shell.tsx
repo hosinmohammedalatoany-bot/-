@@ -33,6 +33,8 @@ import {
   Wrench
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { buildTableReportHtml } from "@/components/print/document-templates";
+import { exportHtmlAsPdf, printHtml } from "@/lib/print";
 import {
   modules,
   permissionGroups,
@@ -301,19 +303,32 @@ export function DashboardShell() {
     log("Inventory CSV exported for Excel.");
   }
 
+  function dashboardReportHtml() {
+    return buildTableReportHtml(
+      "تقرير لوحة التحكم",
+      ["المؤشر", "القيمة"],
+      [
+        ["مركبات متاحة", String(metrics.available)],
+        ["مركبات مباعة", String(metrics.sold)],
+        ["محجوزة", String(metrics.reserved)],
+        ["إجمالي المبيعات", formatCurrency(metrics.totalSales)],
+        ["المصروفات", formatCurrency(metrics.expenses)],
+        ["قيمة المخزون", formatCurrency(metrics.inventoryValue)],
+        ["أرباح متوقعة", formatCurrency(metrics.expectedProfit)],
+        ["أقساط اليوم", String(metrics.todaysInstallments)],
+        ["أقساط متأخرة", String(metrics.overdueInstallments)]
+      ]
+    );
+  }
+
   function exportPdf() {
-    const html = `<html><head><title>Baraa Raed Report</title></head><body><h1>Baraa Raed Sales Report</h1><pre>${JSON.stringify(
-      metrics,
-      null,
-      2
-    )}</pre></body></html>`;
-    createTextDownload("baraa-raed-report.html", html, "text/html");
-    log("Printable HTML report exported. Open it and print as PDF.");
+    exportHtmlAsPdf("baraa-raed-dashboard.pdf", dashboardReportHtml());
+    log("تم تصدير تقرير HTML — افتحه واطبعه إلى PDF.");
   }
 
   function printCenter() {
-    window.print();
-    log("Print center opened with current dashboard context.");
+    printHtml({ title: "تقرير لوحة التحكم", html: dashboardReportHtml() });
+    log("تم فتح طباعة تقرير اللوحة (بدون ورقة فارغة).");
   }
 
   function shareWhatsApp() {

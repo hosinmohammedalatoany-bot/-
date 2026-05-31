@@ -22,13 +22,20 @@ export function reportVerifyUrl(reportId: string, title: string) {
   return `${getAppOrigin()}/verify/report?${q.toString()}`;
 }
 
-/** Same-origin image URL for embedded print iframes. */
+function absoluteAssetPath(path: string) {
+  if (typeof window !== "undefined" && path.startsWith("/")) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+}
+
+/** Same-origin image URL for print (absolute when in browser for iframe / tunnel). */
 export function qrImageSrc(payload: string, size = 128) {
-  return `/api/codes/qr?data=${encodeURIComponent(payload)}&size=${size}`;
+  return absoluteAssetPath(`/api/codes/qr?data=${encodeURIComponent(payload)}&size=${size}`);
 }
 
 export function barcodeImageSrc(value: string, height = 56) {
-  return `/api/codes/barcode?data=${encodeURIComponent(value)}&height=${height}`;
+  return absoluteAssetPath(`/api/codes/barcode?data=${encodeURIComponent(value)}&height=${height}`);
 }
 
 export function buildPrintCodesBlockHtml(options: {
