@@ -8,10 +8,14 @@ const publicPaths = [
   "/forgot-password",
   "/reset-password",
   "/verify-email",
+  "/verify",
   "/api/auth",
   "/api/health",
   "/api/sync",
-  "/offline"
+  "/api/codes",
+  "/offline",
+  "/manifest.webmanifest",
+  "/sw.js"
 ];
 
 export function middleware(request: NextRequest) {

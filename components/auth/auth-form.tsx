@@ -1,12 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BrandLogo } from "@/components/brand-logo";
+import { AuthPageShell } from "@/components/auth/auth-page-shell";
 import { ar } from "@/lib/i18n/ar";
+import { assessPasswordStrength } from "@/lib/password-policy";
 import { cn } from "@/lib/utils";
-const inputClass =
-  "w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-[#d6a84f]/70";
+import { Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
+
+function MessageBox({ message }: { message: { type: "ok" | "err"; text: string } | null }) {
+  if (!message) return null;
+  return (
+    <p
+      className={cn(
+        "rounded-xl p-3 text-sm",
+        message.type === "ok" ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/15 text-red-200"
+      )}
+      role="alert"
+    >
+      {message.text}
+    </p>
+  );
+}
 
 export function LoginForm({ nextPath }: { nextPath?: string }) {
   const router = useRouter();
@@ -19,6 +35,7 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (loading) return;
     setLoading(true);
     setMessage(null);
     try {
@@ -59,61 +76,57 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <div className="luxury-panel rounded-[2rem] p-8">
-        <BrandLogo />
-        <h1 className="mt-6 text-center text-2xl font-black text-white">{ar.appFullName}</h1>
-        <p className="mt-2 text-center text-sm text-white/55">{ar.login}</p>
-        <form className="mt-8 grid gap-4" onSubmit={onSubmit}>
-          <label className="grid gap-1.5 text-sm text-white/70">
-            <span>{ar.email}</span>
-            <input className={inputClass} type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </label>
-          <label className="grid gap-1.5 text-sm text-white/70">
-            <span>{ar.password}</span>
-            <div className="relative">
-              <input
-                className={cn(inputClass, "pe-20")}
-                type={showPassword ? "text" : "password"}
-                dir="ltr"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 end-2 text-xs text-[#d6a84f]"
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? ar.hidePassword : ar.showPassword}
-              </button>
-            </div>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-white/60">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-            {ar.rememberMe}
-          </label>
-          {message && (
-            <p className={cn("rounded-xl p-3 text-sm", message.type === "ok" ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/15 text-red-200")}>
-              {message.text}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] px-4 py-3 text-sm font-bold text-black disabled:opacity-50"
-          >
-            {loading ? ar.loading : ar.login}
-          </button>
-        </form>
-        <a href="/forgot-password" className="mt-4 block text-center text-sm text-[#d6a84f] hover:underline">
+    <AuthPageShell title={ar.appFullName} subtitle={ar.login}>
+      <form className="grid gap-4" onSubmit={onSubmit}>
+        <Field label={ar.email}>
+          <input
+            className={inputClass}
+            type="email"
+            dir="ltr"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </Field>
+        <Field label={ar.password}>
+          <div className="relative">
+            <input
+              className={cn(inputClass, "pe-20")}
+              type={showPassword ? "text" : "password"}
+              dir="ltr"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 end-2 text-xs text-[#d6a84f]"
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? ar.hidePassword : ar.showPassword}
+            </button>
+          </div>
+        </Field>
+        <label className="flex items-center gap-2 text-sm text-white/60">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          {ar.rememberMe}
+        </label>
+        <MessageBox message={message} />
+        <PrimaryButton type="submit" loading={loading} className="w-full py-3">
+          {ar.login}
+        </PrimaryButton>
+      </form>
+      <div className="mt-5 flex flex-col gap-2 text-center text-sm">
+        <Link href="/forgot-password" className="text-[#d6a84f] hover:underline">
           {ar.forgotPassword}
-        </a>
-        <a href="/register" className="mt-2 block text-center text-sm text-white/55 hover:text-[#d6a84f]">
+        </Link>
+        <Link href="/register" className="text-white/55 hover:text-[#d6a84f]">
           {ar.register}
-        </a>
+        </Link>
       </div>
-    </div>
+    </AuthPageShell>
   );
 }
 
@@ -130,59 +143,81 @@ export function SetupForm() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (loading) return;
     if (password !== confirmPassword) {
       setMessage("كلمة المرور وتأكيدها غير متطابقين.");
       return;
     }
-    setLoading(true);
-    setMessage(null);
-    const response = await fetch("/api/auth/setup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, phone, password, branch })
-    });
-    const data = (await response.json()) as { error?: string; message?: string; user?: unknown };
-    setLoading(false);
-    if (!response.ok) {
-      setMessage(data.error ?? ar.error);
+    const strength = assessPasswordStrength(password);
+    if (!strength.valid) {
+      setMessage(strength.message);
       return;
     }
-    if (data.user) {
-      localStorage.setItem("br_user", JSON.stringify(data.user));
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/auth/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, phone, password, branch })
+      });
+      const data = (await response.json()) as { error?: string; message?: string; user?: unknown };
+      if (!response.ok) {
+        setMessage(data.error ?? ar.error);
+        return;
+      }
+      if (data.user) {
+        localStorage.setItem("br_user", JSON.stringify(data.user));
+      }
+      setMessage(data.message ?? ar.success);
+      router.push("/dashboard/dashboard");
+      router.refresh();
+    } catch {
+      setMessage("تعذر الاتصال بالخادم.");
+    } finally {
+      setLoading(false);
     }
-    setMessage(data.message ?? ar.success);
-    router.push("/dashboard/dashboard");
-    router.refresh();
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-10">
-      <div className="luxury-panel rounded-[2rem] p-8">
-        <BrandLogo />
-        <h1 className="mt-6 text-2xl font-black text-white">{ar.setupTitle}</h1>
-        <p className="mt-2 text-sm text-white/55">{ar.setupHint}</p>
-        <form className="mt-6 grid gap-3" onSubmit={onSubmit}>
-          <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
-          <input className={inputClass} type="email" placeholder={ar.email} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input className={inputClass} type="tel" placeholder={ar.phone} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <input className={inputClass} type="password" placeholder={ar.password} dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <input
-            className={inputClass}
-            type="password"
-            placeholder={ar.confirmPassword}
-            dir="ltr"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-          />
-          <input className={inputClass} placeholder={ar.branch} value={branch} onChange={(e) => setBranch(e.target.value)} />
-          {message && <p className="rounded-xl bg-white/10 p-3 text-sm">{message}</p>}
-          <button type="submit" disabled={loading} className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] py-3 font-bold text-black disabled:opacity-50">
-            {loading ? ar.loading : "إنشاء المدير العام"}
-          </button>
-        </form>
-      </div>
-    </div>
+    <AuthPageShell title={ar.setupTitle} subtitle={ar.setupHint}>
+      <form className="grid gap-3" onSubmit={onSubmit}>
+        <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
+        <input
+          className={inputClass}
+          type="email"
+          placeholder={ar.email}
+          dir="ltr"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input className={inputClass} type="tel" placeholder={ar.phone} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <input
+          className={inputClass}
+          type="password"
+          placeholder={ar.password}
+          dir="ltr"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <input
+          className={inputClass}
+          type="password"
+          placeholder={ar.confirmPassword}
+          dir="ltr"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+        />
+        <input className={inputClass} placeholder={ar.branch} value={branch} onChange={(e) => setBranch(e.target.value)} />
+        {message && <p className="rounded-xl bg-white/10 p-3 text-sm">{message}</p>}
+        <PrimaryButton type="submit" loading={loading} className="w-full py-3">
+          إنشاء المدير العام
+        </PrimaryButton>
+      </form>
+    </AuthPageShell>
   );
 }
 
@@ -194,39 +229,49 @@ export function ForgotPasswordForm() {
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (loading) return;
     setLoading(true);
-    const response = await fetch("/api/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email })
-    });
-    const data = (await response.json()) as { message?: string; resetUrl?: string };
-    setLoading(false);
-    setMessage(data.message ?? ar.success);
-    setResetUrl(data.resetUrl ?? null);
+    setMessage(null);
+    setResetUrl(null);
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = (await response.json()) as { message?: string; resetUrl?: string };
+      setMessage(data.message ?? ar.success);
+      setResetUrl(data.resetUrl ?? null);
+    } catch {
+      setMessage("تعذر الاتصال بالخادم.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
-      <div className="luxury-panel rounded-[2rem] p-8">
-        <h1 className="text-xl font-black">{ar.forgotPassword}</h1>
-        <form className="mt-6 grid gap-3" onSubmit={onSubmit}>
+    <AuthPageShell title={ar.forgotPassword} subtitle="أدخل بريدك الإلكتروني لاستلام رابط إعادة التعيين.">
+      <form className="grid gap-3" onSubmit={onSubmit}>
+        <Field label={ar.email}>
           <input className={inputClass} type="email" dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <button type="submit" disabled={loading} className="rounded-xl bg-[#d6a84f] py-3 font-bold text-black">
-            {ar.sendResetLink}
-          </button>
-        </form>
-        {message && <p className="mt-4 text-sm text-emerald-200">{message}</p>}
-        {resetUrl && (
-          <p className="mt-2 break-all text-xs text-white/50">
-            رابط التطوير: <a href={resetUrl}>{resetUrl}</a>
-          </p>
-        )}
-        <a href="/login" className="mt-4 block text-sm text-[#d6a84f]">
-          {ar.back}
-        </a>
-      </div>
-    </div>
+        </Field>
+        <PrimaryButton type="submit" loading={loading} className="w-full py-3">
+          {ar.sendResetLink}
+        </PrimaryButton>
+      </form>
+      {message && <p className="mt-4 text-sm text-emerald-200">{message}</p>}
+      {resetUrl && (
+        <p className="mt-2 break-all rounded-xl bg-white/5 p-3 text-xs text-white/50">
+          رابط التطوير:{" "}
+          <a href={resetUrl} className="text-[#d6a84f] underline">
+            {resetUrl}
+          </a>
+        </p>
+      )}
+      <Link href="/login" className="mt-5 block text-center text-sm text-[#d6a84f] hover:underline">
+        {ar.back}
+      </Link>
+    </AuthPageShell>
   );
 }
 
@@ -240,8 +285,11 @@ export function RegisterForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const passwordHint = assessPasswordStrength(password);
 
   useEffect(() => {
     fetch("/api/auth/register")
@@ -257,10 +305,23 @@ export function RegisterForm() {
         }
       })
       .catch(() => setMessage({ type: "err", text: "تعذر تحميل إعدادات التسجيل." }));
-  }, [router]);
+  }, []);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (loading || registrationOpen === false) return;
+    if (!acceptTerms) {
+      setMessage({ type: "err", text: "يجب الموافقة على الشروط والأحكام." });
+      return;
+    }
+    if (password !== confirmPassword) {
+      setMessage({ type: "err", text: "كلمة المرور وتأكيدها غير متطابقين." });
+      return;
+    }
+    if (!passwordHint.valid) {
+      setMessage({ type: "err", text: passwordHint.message });
+      return;
+    }
     setLoading(true);
     setMessage(null);
     try {
@@ -272,7 +333,8 @@ export function RegisterForm() {
           email,
           phone,
           password,
-          confirmPassword
+          confirmPassword,
+          acceptTerms: true
         })
       });
       const data = (await response.json()) as {
@@ -301,73 +363,99 @@ export function RegisterForm() {
     }
   }
 
+  const subtitle = firstSetup
+    ? "إنشاء أول حساب (مدير النظام) — يُفعَّل فوراً."
+    : "بعد التسجيل قد ينتظر حسابك موافقة المدير.";
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-10">
-      <div className="luxury-panel rounded-[2rem] p-8">
-        <BrandLogo />
-        <h1 className="mt-6 text-center text-2xl font-black text-white">{ar.appFullName}</h1>
-        <p className="mt-2 text-center text-sm text-white/55">
-          {firstSetup ? "إنشاء أول حساب (مدير النظام)" : ar.registerTitle}
-        </p>
-        <p className="mt-1 text-center text-xs text-white/45">
-          {firstSetup
-            ? "بعد التسجيل تُفعَّل الحساب فوراً وتنتقل إلى لوحة التحكم."
-            : "بعد التسجيل ينتظر حسابك موافقة المدير قبل الدخول."}
-        </p>
-        <form className="mt-6 grid gap-3" onSubmit={onSubmit} noValidate={registrationOpen === false}>
-          <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
-          <input className={inputClass} type="email" placeholder={ar.email} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input className={inputClass} type="tel" placeholder={ar.phone} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required />
-          <div className="relative">
-            <input
-              className={cn(inputClass, "pe-20")}
-              type={showPassword ? "text" : "password"}
-              placeholder={ar.password}
-              dir="ltr"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 end-2 text-xs text-[#d6a84f]"
-              onClick={() => setShowPassword((v) => !v)}
-            >
-              {showPassword ? ar.hidePassword : ar.showPassword}
-            </button>
-          </div>
+    <AuthPageShell title={firstSetup ? "إعداد النظام" : ar.registerTitle} subtitle={subtitle} wide>
+      <form className="grid gap-3" onSubmit={onSubmit} noValidate={registrationOpen === false}>
+        <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
+        <input
+          className={inputClass}
+          type="email"
+          placeholder={ar.email}
+          dir="ltr"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          className={inputClass}
+          type="tel"
+          placeholder={ar.phone}
+          dir="ltr"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          required
+        />
+        <div className="relative">
           <input
-            className={inputClass}
-            type="password"
-            placeholder={ar.confirmPassword}
+            className={cn(inputClass, "pe-20")}
+            type={showPassword ? "text" : "password"}
+            placeholder={ar.password}
             dir="ltr"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
-          {message && (
-            <div
-              className={cn(
-                "rounded-xl p-3 text-sm",
-                message.type === "ok" ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/15 text-red-200"
-              )}
-            >
-              <p>{message.text}</p>
-            </div>
-          )}
           <button
-            type="submit"
-            disabled={loading || registrationOpen === false || registrationOpen === null}
-            className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] py-3 font-bold text-black disabled:opacity-50"
+            type="button"
+            className="absolute inset-y-0 end-2 text-xs text-[#d6a84f]"
+            onClick={() => setShowPassword((v) => !v)}
           >
-            {loading ? ar.loading : ar.register}
+            {showPassword ? ar.hidePassword : ar.showPassword}
           </button>
-        </form>
-        <a href="/login" className="mt-4 block text-center text-sm text-[#d6a84f] hover:underline">
-          {ar.backToLogin}
-        </a>
-      </div>
-    </div>
+        </div>
+        {password && (
+          <p
+            className={cn(
+              "text-xs",
+              passwordHint.strength === "strong"
+                ? "text-emerald-300"
+                : passwordHint.strength === "fair"
+                  ? "text-amber-200"
+                  : "text-red-300"
+            )}
+          >
+            {passwordHint.message}
+          </p>
+        )}
+        <input
+          className={inputClass}
+          type="password"
+          placeholder={ar.confirmPassword}
+          dir="ltr"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+        />
+        <label className="flex items-start gap-2 text-sm text-white/60">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+          />
+          <span>أوافق على الشروط والأحكام وسياسة استخدام النظام.</span>
+        </label>
+        <MessageBox message={message} />
+        <PrimaryButton
+          type="submit"
+          loading={loading}
+          disabled={registrationOpen === false || registrationOpen === null}
+          className="w-full py-3"
+        >
+          {ar.register}
+        </PrimaryButton>
+      </form>
+      <Link href="/login" className="mt-4 block text-center text-sm text-[#d6a84f] hover:underline">
+        {ar.backToLogin}
+      </Link>
+    </AuthPageShell>
   );
 }
 
@@ -404,22 +492,14 @@ export function VerifyEmailForm({ token }: { token?: string }) {
   }, [token]);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
-      <div className="luxury-panel rounded-[2rem] p-8">
-        <BrandLogo />
-        <h1 className="mt-6 text-xl font-black">{ar.verifyEmailTitle}</h1>
-        {loading && <p className="mt-4 text-sm text-white/60">{ar.loading}</p>}
-        {message && (
-          <p className={cn("mt-4 rounded-xl p-3 text-sm", message.type === "ok" ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/15 text-red-200")}>
-            {message.text}
-          </p>
-        )}
-        {!token && <p className="mt-4 text-sm text-red-200">رابط التحقق غير صالح.</p>}
-        <a href="/login" className="mt-4 block text-sm text-[#d6a84f]">
-          {ar.backToLogin}
-        </a>
-      </div>
-    </div>
+    <AuthPageShell title={ar.verifyEmailTitle}>
+      {loading && <p className="text-sm text-white/60">{ar.loading}</p>}
+      <MessageBox message={message} />
+      {!token && <p className="text-sm text-red-200">رابط التحقق غير صالح.</p>}
+      <Link href="/login" className="mt-4 block text-sm text-[#d6a84f] hover:underline">
+        {ar.backToLogin}
+      </Link>
+    </AuthPageShell>
   );
 }
 
@@ -427,40 +507,96 @@ export function ResetPasswordForm({ token }: { token?: string }) {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const strength = assessPasswordStrength(password);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
-    const response = await fetch("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, password, confirm })
-    });
-    const data = (await response.json()) as { error?: string; message?: string };
-    setLoading(false);
-    if (!response.ok) {
-      setMessage(data.error ?? ar.error);
+    if (loading) return;
+    if (!token) {
+      setMessage({ type: "err", text: "رابط إعادة التعيين غير صالح أو منتهي." });
       return;
     }
-    setMessage(data.message ?? ar.success);
-    setTimeout(() => router.push("/login"), 1000);
+    if (password !== confirm) {
+      setMessage({ type: "err", text: "كلمة المرور وتأكيدها غير متطابقين." });
+      return;
+    }
+    if (!strength.valid) {
+      setMessage({ type: "err", text: strength.message });
+      return;
+    }
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password, confirm })
+      });
+      const data = (await response.json()) as { error?: string; message?: string };
+      if (!response.ok) {
+        setMessage({ type: "err", text: data.error ?? ar.error });
+        return;
+      }
+      setMessage({ type: "ok", text: data.message ?? ar.success });
+      setTimeout(() => router.push("/login"), 1200);
+    } catch {
+      setMessage({ type: "err", text: "تعذر الاتصال بالخادم." });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
-      <div className="luxury-panel rounded-[2rem] p-8">
-        <h1 className="text-xl font-black">{ar.resetPassword}</h1>
-        <form className="mt-6 grid gap-3" onSubmit={onSubmit}>
-          <input className={inputClass} type="password" placeholder={ar.newPassword} value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <input className={inputClass} type="password" placeholder={ar.confirmPassword} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
-          {message && <p className="text-sm">{message}</p>}
-          <button type="submit" disabled={loading} className="rounded-xl bg-[#d6a84f] py-3 font-bold text-black">
+    <AuthPageShell title={ar.resetPassword} subtitle="اختر كلمة مرور قوية جديدة.">
+      {!token ? (
+        <p className="text-sm text-red-200">الرابط غير صالح. اطلب رابطاً جديداً من صفحة نسيت كلمة المرور.</p>
+      ) : (
+        <form className="grid gap-3" onSubmit={onSubmit}>
+          <Field label={ar.newPassword}>
+            <div className="relative">
+              <input
+                className={cn(inputClass, "pe-20")}
+                type={showPassword ? "text" : "password"}
+                dir="ltr"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 end-2 text-xs text-[#d6a84f]"
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? ar.hidePassword : ar.showPassword}
+              </button>
+            </div>
+          </Field>
+          {password && <p className="text-xs text-white/50">{strength.message}</p>}
+          <Field label={ar.confirmPassword}>
+            <input
+              className={inputClass}
+              type="password"
+              dir="ltr"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+            />
+          </Field>
+          <MessageBox message={message} />
+          <PrimaryButton type="submit" loading={loading} className="w-full py-3">
             {ar.save}
-          </button>
+          </PrimaryButton>
         </form>
-      </div>
-    </div>
+      )}
+      <Link href="/login" className="mt-4 block text-center text-sm text-[#d6a84f] hover:underline">
+        {ar.backToLogin}
+      </Link>
+    </AuthPageShell>
   );
 }

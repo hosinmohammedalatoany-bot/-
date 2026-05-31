@@ -102,6 +102,29 @@ export function getPrintStyles() {
     max-width: 120px;
     object-fit: contain;
   }
+  .print-codes-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-top: 24px;
+    padding: 16px;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    page-break-inside: avoid;
+  }
+  .print-code-cell { text-align: center; }
+  .print-code-img { display: block; margin: 0 auto; max-width: 100%; }
+  .print-qr { width: 128px; height: 128px; }
+  .print-barcode { max-height: 72px; width: auto; }
+  .print-code-caption { margin: 8px 0 0; font-size: 11px; color: #555; }
+  @media print {
+    table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+  }
 `;
 }
 
@@ -132,7 +155,9 @@ export function printHtml({ title, html, onPrinted }: PrintOptions) {
   doc.close();
 
   const runPrint = () => {
-    const imgs = frame.contentWindow?.document.querySelectorAll("img.print-logo, img.print-stamp, img.print-signature");
+    const imgs = frame.contentWindow?.document.querySelectorAll(
+      "img.print-logo, img.print-stamp, img.print-signature, img.print-code-img"
+    );
     const waitForImages = () => {
       if (!imgs || imgs.length === 0) {
         frame.contentWindow?.focus();

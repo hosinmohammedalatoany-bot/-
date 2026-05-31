@@ -10,6 +10,7 @@ import { PrintToolbar } from "@/components/print/print-toolbar";
 import { EmptyState, Field, PrimaryButton, SecondaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { vehicleSchema, type VehicleInput } from "@/lib/validation";
+import { vehicleVerifyUrl } from "@/lib/document-codes";
 import { formatCurrency } from "@/lib/utils";
 import type { Vehicle } from "@/lib/domain";
 
@@ -222,8 +223,7 @@ export function CarsModule() {
                       <div className="flex flex-wrap gap-1">
                         <SecondaryButton
                           onClick={() => {
-                            const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(v.vin)}`;
-                            window.open(url, "_blank");
+                            window.open(vehicleVerifyUrl(v.id), "_blank", "noopener,noreferrer");
                             log(`QR للسيارة ${v.internalNumber}`);
                           }}
                         >

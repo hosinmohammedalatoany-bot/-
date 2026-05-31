@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,7 +33,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl">
-      <body className="rtl-support antialiased">{children}</body>
+      <body className="rtl-support antialiased">
+        <PwaRegister />
+        {children}
+      </body>
     </html>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ar } from "@/lib/i18n/ar";
 
 export const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none transition focus:border-[#d6a84f]/70";
@@ -36,21 +38,31 @@ export function PrimaryButton({
   children,
   onClick,
   type = "button",
-  disabled = false
+  disabled = false,
+  loading = false,
+  className
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   type?: "button" | "submit";
   disabled?: boolean;
+  loading?: boolean;
+  className?: string;
 }) {
+  const busy = disabled || loading;
   return (
     <button
       type={type}
       onClick={onClick}
-      disabled={disabled}
-      className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] px-4 py-2 text-sm font-bold text-black shadow-lg shadow-[#d6a84f]/20 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50"
+      disabled={busy}
+      aria-busy={loading}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] px-4 py-2 text-sm font-bold text-black shadow-lg shadow-[#d6a84f]/20 transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
     >
-      {children}
+      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+      {loading ? ar.loading : children}
     </button>
   );
 }
@@ -58,19 +70,29 @@ export function PrimaryButton({
 export function SecondaryButton({
   children,
   onClick,
-  disabled
+  disabled,
+  loading = false,
+  className
 }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
+  loading?: boolean;
+  className?: string;
 }) {
+  const busy = disabled || loading;
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-[#d6a84f]/60 hover:bg-[#d6a84f]/10 disabled:opacity-50"
+      disabled={busy}
+      aria-busy={loading}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-[#d6a84f]/60 hover:bg-[#d6a84f]/10 disabled:opacity-50",
+        className
+      )}
     >
+      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
       {children}
     </button>
   );

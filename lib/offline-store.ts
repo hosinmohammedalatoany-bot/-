@@ -206,9 +206,17 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     });
   },
   addVehicle: (input) => {
-    const duplicate = get().vehicles.some((vehicle) => vehicle.vin.toUpperCase() === input.vin.toUpperCase());
-    if (duplicate) {
-      const message = `Duplicate VIN blocked: ${input.vin}`;
+    const duplicateVin = get().vehicles.some((vehicle) => vehicle.vin.toUpperCase() === input.vin.toUpperCase());
+    if (duplicateVin) {
+      const message = `رقم VIN مكرر: ${input.vin}`;
+      set((state) => ({ conflictMessages: [message, ...state.conflictMessages].slice(0, 6) }));
+      return { ok: false, message };
+    }
+    const duplicateInternal = get().vehicles.some(
+      (vehicle) => vehicle.internalNumber.trim().toLowerCase() === input.internalNumber.trim().toLowerCase()
+    );
+    if (duplicateInternal) {
+      const message = `الرقم الداخلي مكرر: ${input.internalNumber}`;
       set((state) => ({ conflictMessages: [message, ...state.conflictMessages].slice(0, 6) }));
       return { ok: false, message };
     }

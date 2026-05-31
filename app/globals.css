@@ -50,6 +50,13 @@ textarea {
   backdrop-filter: blur(18px);
 }
 
+.auth-page-bg {
+  background:
+    radial-gradient(circle at 80% 10%, rgb(214 168 79 / 14%), transparent 28rem),
+    radial-gradient(circle at 10% 90%, rgb(59 130 246 / 8%), transparent 24rem),
+    linear-gradient(160deg, #040404 0%, #0c1018 45%, #050505 100%);
+}
+
 .gold-text {
   background: linear-gradient(135deg, #fff8d6, var(--gold-strong), #96703a);
   -webkit-background-clip: text;

@@ -17,11 +17,16 @@ export const registerSchema = z
       .min(8, "رقم الهاتف مطلوب.")
       .regex(/^[\d+\s()-]{8,20}$/, "رقم الهاتف غير صالح."),
     password: strongPassword,
-    confirmPassword: z.string()
+    confirmPassword: z.string(),
+    acceptTerms: z.boolean().optional()
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "كلمة المرور وتأكيدها غير متطابقين.",
     path: ["confirmPassword"]
+  })
+  .refine((data) => data.acceptTerms === true, {
+    message: "يجب الموافقة على الشروط والأحكام.",
+    path: ["acceptTerms"]
   });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

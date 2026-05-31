@@ -2,6 +2,12 @@
 
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { loadCompanyPrintSettings } from "@/lib/company-print-settings";
+import {
+  buildPrintCodesBlockHtml,
+  invoiceVerifyUrl,
+  reportVerifyUrl,
+  vehicleVerifyUrl
+} from "@/lib/document-codes";
 import { wrapPrintDocument } from "@/lib/print-document";
 import type { Customer, Invoice, Vehicle } from "@/lib/domain";
 
@@ -45,9 +51,15 @@ export function buildInvoicePrintHtml(params: {
       <tr><th>المتبقي</th><td>${formatCurrency(remaining)}</td></tr>
       <tr><th>طريقة الدفع</th><td>${invoice.type}</td></tr>
     </table>
+    ${buildPrintCodesBlockHtml({
+      qrPayload: invoiceVerifyUrl(invoiceNumber),
+      barcodeValue: invoiceNumber,
+      qrCaption: "امسح للتحقق من الفاتورة",
+      barcodeCaption: `كود الفاتورة: ${invoiceNumber}`
+    })}
     <div class="signatures">
       <div class="sign-line">توقيع العميل</div>
-      <div class="sign-line">توقيع المدير</div>
+      <div class="sign-line">توقيع الموظف</div>
     </div>
   `;
 
@@ -83,6 +95,12 @@ export function buildSaleContractPrintHtml(params: {
       <tr><th>طريقة الدفع</th><td>${invoice.type}</td></tr>
     </table>
     <p class="muted">يُقر الطرفان بصحة البيانات ويتحمل المشتري مسؤولية نقل الملكية والرسوم الرسمية ما لم يُتفق خلاف ذلك.</p>
+    ${buildPrintCodesBlockHtml({
+      qrPayload: vehicle?.id ? vehicleVerifyUrl(vehicle.id) : invoiceVerifyUrl(contractNumber),
+      barcodeValue: vehicle?.internalNumber || contractNumber,
+      qrCaption: vehicle?.id ? "امسح لبيانات السيارة" : "امسح للتحقق من العقد",
+      barcodeCaption: vehicle?.internalNumber ? `كود السيارة: ${vehicle.internalNumber}` : `عقد: ${contractNumber}`
+    })}
     <div class="signatures">
       <div class="sign-line">توقيع البائع</div>
       <div class="sign-line">توقيع المشتري</div>
@@ -112,6 +130,12 @@ export function buildInstallmentContractPrintHtml(params: {
   const body = `
     <p>عقد تقسيط بين ${settings.companyName} والعميل <strong>${customerName ?? "—"}</strong> بمبلغ إجمالي <strong>${formatCurrency(totalAmount)}</strong>.</p>
     ${scheduleNote ? `<p>${scheduleNote}</p>` : "<p>يُسدد المبلغ على أقساط دورية حسب الجدول المعتمد في النظام.</p>"}
+    ${buildPrintCodesBlockHtml({
+      barcodeValue: contractNumber,
+      qrPayload: reportVerifyUrl(contractNumber, "عقد التقسيط"),
+      qrCaption: "امسح للتحقق من العقد",
+      barcodeCaption: `عقد تقسيط: ${contractNumber}`
+    })}
     <div class="signatures">
       <div class="sign-line">توقيع المعرض</div>
       <div class="sign-line">توقيع العميل</div>
@@ -146,6 +170,12 @@ export function buildPaymentReceiptPrintHtml(params: {
       ${reference ? `<tr><th>المرجع</th><td>${reference}</td></tr>` : ""}
       ${note ? `<tr><th>البيان</th><td>${note}</td></tr>` : ""}
     </table>
+    ${buildPrintCodesBlockHtml({
+      barcodeValue: receiptNumber,
+      qrPayload: reportVerifyUrl(receiptNumber, params.note?.includes("حجز") ? "إيصال حجز" : "إيصال دفع"),
+      qrCaption: "إيصال رسمي",
+      barcodeCaption: `رقم الإيصال: ${receiptNumber}`
+    })}
     <div class="signatures">
       <div class="sign-line">توقيع المحاسب</div>
       <div class="sign-line">توقيع العميل</div>
@@ -164,16 +194,27 @@ export function buildPaymentReceiptPrintHtml(params: {
 }
 
 export function buildTableReportHtml(title: string, headers: string[], rows: string[][]) {
+  const settings = loadCompanyPrintSettings();
   const head = headers.map((h) => `<th>${h}</th>`).join("");
   const body = rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
   const table = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  const reportId = `RPT-${Date.now().toString(36).toUpperCase()}`;
+
+  const codes = buildPrintCodesBlockHtml({
+    qrPayload: reportVerifyUrl(reportId, title),
+    barcodeValue: reportId,
+    qrCaption: "تقرير رسمي — baraa raed",
+    barcodeCaption: reportId
+  });
 
   return wrapPrintDocument(
     {
       documentTitle: title,
+      documentNumber: reportId,
       documentDate: new Date()
     },
-    table
+    `${table}${codes}`,
+    settings
   );
 }
 

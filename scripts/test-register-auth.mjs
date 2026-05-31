@@ -31,11 +31,19 @@ function testRegisterPayloadRules() {
 }
 
 function testRegisterFormFields() {
-  const allowedFields = new Set(["name", "email", "phone", "password", "confirmPassword"]);
-  const legacyFields = ["role", "branch", "acceptTerms"];
-  for (const field of legacyFields) {
-    assert(!allowedFields.has(field), `public register must not require ${field}`);
+  const requiredFields = ["name", "email", "phone", "password", "confirmPassword", "acceptTerms"];
+  const payload = {
+    name: "Test User",
+    email: "user@example.com",
+    phone: "07701234567",
+    password: "Password1",
+    confirmPassword: "Password1",
+    acceptTerms: true
+  };
+  for (const field of requiredFields) {
+    assert(field in payload, `register payload includes ${field}`);
   }
+  assert(payload.acceptTerms === true, "acceptTerms must be true");
 }
 
 function testRegistrationStatusPolicy() {
