@@ -272,7 +272,36 @@ const auditActionCopy: Record<string, string> = {
   "Vehicle status updated": "تم تحديث حالة السيارة"
 };
 
-type ReportKey = "inventory" | "sales" | "installments" | "customers" | "expenses" | "employees" | "branches";
+type ReportKey =
+  | "invoice"
+  | "sale-contract"
+  | "installment-contract"
+  | "payment-receipt"
+  | "reservation-receipt"
+  | "customer-statement"
+  | "supplier-statement"
+  | "sales"
+  | "profit-loss"
+  | "expenses"
+  | "available-cars"
+  | "sold-cars"
+  | "reserved-cars"
+  | "inventory"
+  | "installments"
+  | "paid-installments"
+  | "overdue-installments"
+  | "customers"
+  | "employees"
+  | "branches"
+  | "maintenance"
+  | "insurance"
+  | "cars-table"
+  | "customers-table"
+  | "sales-table"
+  | "installments-table"
+  | "expenses-table"
+  | "employees-table"
+  | "branches-table";
 
 interface PrintableReport {
   title: string;
@@ -283,13 +312,35 @@ interface PrintableReport {
 }
 
 const reportTabs: Array<{ key: ReportKey; title: string }> = [
-  { key: "inventory", title: "تقرير المخزون" },
+  { key: "invoice", title: "فاتورة بيع" },
+  { key: "sale-contract", title: "عقد بيع" },
+  { key: "installment-contract", title: "عقد تقسيط" },
+  { key: "payment-receipt", title: "إيصال دفع" },
+  { key: "reservation-receipt", title: "إيصال حجز" },
+  { key: "customer-statement", title: "كشف حساب عميل" },
+  { key: "supplier-statement", title: "كشف حساب مورد" },
   { key: "sales", title: "تقرير المبيعات" },
+  { key: "profit-loss", title: "تقرير الأرباح والخسائر" },
+  { key: "expenses", title: "تقرير المصروفات" },
+  { key: "available-cars", title: "السيارات المتوفرة" },
+  { key: "sold-cars", title: "السيارات المباعة" },
+  { key: "reserved-cars", title: "السيارات المحجوزة" },
+  { key: "inventory", title: "تقرير المخزون" },
+  { key: "paid-installments", title: "الأقساط المدفوعة" },
+  { key: "overdue-installments", title: "الأقساط المتأخرة" },
   { key: "installments", title: "تقرير الأقساط" },
   { key: "customers", title: "تقرير العملاء" },
-  { key: "expenses", title: "تقرير المصروفات" },
   { key: "employees", title: "تقرير الموظفين" },
-  { key: "branches", title: "تقرير الفروع" }
+  { key: "branches", title: "تقرير الفروع" },
+  { key: "maintenance", title: "تقرير الصيانة" },
+  { key: "insurance", title: "تقرير التأمين والمستندات" },
+  { key: "cars-table", title: "جدول السيارات" },
+  { key: "customers-table", title: "جدول العملاء" },
+  { key: "sales-table", title: "جدول المبيعات" },
+  { key: "installments-table", title: "جدول الأقساط" },
+  { key: "expenses-table", title: "جدول المصروفات" },
+  { key: "employees-table", title: "جدول الموظفين" },
+  { key: "branches-table", title: "جدول الفروع" }
 ];
 
 const roleCopy: Record<string, { role: string; permissions: string[] }> = {
@@ -436,6 +487,10 @@ export function DashboardShell() {
   const [rtl, setRtl] = useState(true);
   const [activeReportKey, setActiveReportKey] = useState<ReportKey>("inventory");
   const [printTimestamp, setPrintTimestamp] = useState(() => new Date().toISOString());
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [vehicleSearch, setVehicleSearch] = useState("");
+  const [vehicleStatusFilter, setVehicleStatusFilter] = useState<"all" | Vehicle["status"]>("all");
+  const [vehiclePage, setVehiclePage] = useState(1);
   const vehicleForm = useValidatedForm<VehicleInput>(defaultVehicle);
   const customerForm = useValidatedForm<CustomerInput>(defaultCustomer);
   const leadForm = useValidatedForm<LeadInput>(defaultLead);
@@ -505,8 +560,162 @@ export function DashboardShell() {
     };
   }, [store.vehicles, store.invoices, store.expenses, store.installments]);
 
+  const primaryInvoice = store.invoices[0];
+  const primaryVehicle = store.vehicles.find((vehicle) => vehicle.id === primaryInvoice?.vehicleId) ?? store.vehicles[0];
+  const primaryCustomer = store.customers.find((customer) => customer.id === primaryInvoice?.customerId) ?? store.customers[0];
+  const primaryReservation = store.reservations[0];
+  const primaryInstallment = store.installments[0];
+  const soldVehicles = store.vehicles.filter((vehicle) => vehicle.status === "sold");
+  const reservedVehicles = store.vehicles.filter((vehicle) => vehicle.status === "reserved");
+  const availableVehicles = store.vehicles.filter((vehicle) => vehicle.status === "available");
+  const paidInstallments = store.installments.filter((installment) => installment.status === "paid");
+  const overdueInstallments = store.installments.filter((installment) => installment.status === "overdue");
+
   const printableReports = useMemo<Record<ReportKey, PrintableReport>>(
     () => ({
+      invoice: {
+        title: "فاتورة بيع سيارة",
+        subtitle: "فاتورة رسمية تتضمن بيانات الشركة والعميل والسيارة والدفع.",
+        headers: ["البند", "القيمة"],
+        rows: [
+          ["رقم الفاتورة", primaryInvoice?.id ?? "INV-DRAFT-001"],
+          ["تاريخ الفاتورة", primaryInvoice ? formatDateTime(primaryInvoice.createdAt) : formatDateTime(new Date())],
+          ["اسم العميل", primaryCustomer?.name ?? "غير محدد"],
+          ["هاتف العميل", primaryCustomer?.phone ?? "غير محدد"],
+          ["السيارة", primaryVehicle ? `${primaryVehicle.manufacturer} ${primaryVehicle.model} ${primaryVehicle.year}` : "غير محدد"],
+          ["VIN", primaryVehicle?.vin ?? "غير محدد"],
+          ["رقم اللوحة", primaryVehicle?.plateNumber ?? "غير محدد"],
+          ["سعر السيارة", primaryInvoice ? formatCurrency(primaryInvoice.total) : formatCurrency(primaryVehicle?.salePrice ?? 0)],
+          ["الخصم", formatCurrency(primaryInvoice?.discount ?? 0)],
+          ["الضريبة", formatCurrency(primaryInvoice?.tax ?? 0)],
+          ["الإجمالي النهائي", primaryInvoice ? formatCurrency(primaryInvoice.total - primaryInvoice.discount + primaryInvoice.tax) : formatCurrency(primaryVehicle?.salePrice ?? 0)],
+          ["طريقة الدفع", primaryInvoice?.type ?? "مختلط"],
+          ["الموظف", "المدير العام"]
+        ],
+        summary: [
+          { label: "رقم الفاتورة", value: primaryInvoice?.id ?? "INV-DRAFT-001" },
+          { label: "الإجمالي", value: primaryInvoice ? formatCurrency(primaryInvoice.total) : formatCurrency(primaryVehicle?.salePrice ?? 0) },
+          { label: "الحالة", value: "جاهزة للطباعة" }
+        ]
+      },
+      "sale-contract": {
+        title: "عقد بيع سيارة",
+        subtitle: "عقد بيع رسمي بين المعرض والعميل مع بيانات السيارة والشروط.",
+        headers: ["الفقرة", "التفاصيل"],
+        rows: [
+          ["رقم العقد", `SC-${primaryInvoice?.id ?? "001"}`],
+          ["الطرف الأول", "Baraa Raed لإدارة معارض السيارات"],
+          ["الطرف الثاني", primaryCustomer?.name ?? "غير محدد"],
+          ["بيانات السيارة", primaryVehicle ? `${primaryVehicle.manufacturer} ${primaryVehicle.model} ${primaryVehicle.trim} ${primaryVehicle.year}` : "غير محدد"],
+          ["رقم الهيكل", primaryVehicle?.vin ?? "غير محدد"],
+          ["سعر البيع", primaryInvoice ? formatCurrency(primaryInvoice.total) : formatCurrency(primaryVehicle?.salePrice ?? 0)],
+          ["طريقة الدفع", primaryInvoice?.type ?? "مختلط"],
+          ["إقرار الاستلام", "يقر الطرف الثاني باستلام السيارة بالحالة الموضحة في النظام."],
+          ["الشروط", "لا يتم تعديل العقد المعتمد إلا بإصدار نسخة قانونية جديدة مع سبب التعديل."]
+        ],
+        summary: [
+          { label: "نوع المستند", value: "عقد بيع" },
+          { label: "العميل", value: primaryCustomer?.name ?? "غير محدد" },
+          { label: "السيارة", value: primaryVehicle?.internalNumber ?? "غير محدد" }
+        ]
+      },
+      "installment-contract": {
+        title: "عقد تقسيط",
+        subtitle: "عقد تقسيط رسمي يتضمن الدفعة المقدمة وجدول الأقساط.",
+        headers: ["البند", "القيمة"],
+        rows: [
+          ["رقم العقد", "IC-001"],
+          ["العميل", primaryCustomer?.name ?? "غير محدد"],
+          ["السيارة", primaryVehicle ? `${primaryVehicle.manufacturer} ${primaryVehicle.model}` : "غير محدد"],
+          ["السعر الإجمالي", formatCurrency(primaryVehicle?.salePrice ?? 0)],
+          ["الدفعة المقدمة", formatCurrency(5000)],
+          ["المبلغ المتبقي", formatCurrency(Math.max((primaryVehicle?.salePrice ?? 0) - 5000, 0))],
+          ["عدد الأقساط", "24"],
+          ["قيمة القسط", formatCurrency(primaryInstallment?.amount ?? 0)],
+          ["تاريخ بداية الأقساط", primaryInstallment ? formatDateTime(primaryInstallment.dueDate) : formatDateTime(new Date())],
+          ["الشروط", "يلتزم العميل بالسداد في تاريخ الاستحقاق وتطبق تنبيهات التأخير حسب سياسة المعرض."]
+        ],
+        summary: [
+          { label: "عدد الأقساط", value: "24" },
+          { label: "القسط الحالي", value: formatCurrency(primaryInstallment?.amount ?? 0) },
+          { label: "الحالة", value: "جاهز للطباعة" }
+        ]
+      },
+      "payment-receipt": {
+        title: "إيصال دفع قسط",
+        subtitle: "إيصال رسمي لاستلام دفعة قسط من العميل.",
+        headers: ["البند", "القيمة"],
+        rows: [
+          ["رقم الإيصال", "REC-001"],
+          ["تاريخ الدفع", formatDateTime(new Date())],
+          ["اسم العميل", primaryCustomer?.name ?? "غير محدد"],
+          ["رقم الهاتف", primaryCustomer?.phone ?? "غير محدد"],
+          ["رقم القسط", primaryInstallment?.id ?? "غير محدد"],
+          ["قيمة القسط", formatCurrency(primaryInstallment?.amount ?? 0)],
+          ["المبلغ المدفوع", formatCurrency(primaryInstallment?.paidAmount ?? 0)],
+          ["المتبقي", formatCurrency(Math.max((primaryInstallment?.amount ?? 0) - (primaryInstallment?.paidAmount ?? 0), 0))],
+          ["طريقة الدفع", "نقدي"],
+          ["الموظف المستلم", "المدير العام"]
+        ],
+        summary: [
+          { label: "المبلغ", value: formatCurrency(primaryInstallment?.paidAmount ?? 0) },
+          { label: "القسط", value: primaryInstallment?.id ?? "غير محدد" },
+          { label: "العميل", value: primaryCustomer?.name ?? "غير محدد" }
+        ]
+      },
+      "reservation-receipt": {
+        title: "إيصال حجز سيارة",
+        subtitle: "إيصال حجز رسمي يتضمن بيانات العميل والسيارة والعربون.",
+        headers: ["البند", "القيمة"],
+        rows: [
+          ["رقم الحجز", primaryReservation?.id ?? "RES-DRAFT-001"],
+          ["تاريخ الحجز", formatDateTime(new Date())],
+          ["اسم العميل", primaryCustomer?.name ?? "غير محدد"],
+          ["رقم الهاتف", primaryCustomer?.phone ?? "غير محدد"],
+          ["السيارة", primaryVehicle ? `${primaryVehicle.manufacturer} ${primaryVehicle.model}` : "غير محدد"],
+          ["مبلغ العربون", formatCurrency(primaryReservation?.deposit ?? 0)],
+          ["تاريخ انتهاء الحجز", primaryReservation ? formatDateTime(primaryReservation.expiresAt) : formatDateTime(new Date())],
+          ["شروط الحجز", "الحجز قابل للتحويل إلى بيع قبل تاريخ الانتهاء حسب موافقة الإدارة."]
+        ],
+        summary: [
+          { label: "رقم الحجز", value: primaryReservation?.id ?? "RES-DRAFT-001" },
+          { label: "العربون", value: formatCurrency(primaryReservation?.deposit ?? 0) },
+          { label: "الحالة", value: "نشط" }
+        ]
+      },
+      "customer-statement": {
+        title: "كشف حساب العميل",
+        subtitle: "ملخص أرصدة العميل ومشترياته وأقساطه.",
+        headers: ["البند", "القيمة"],
+        rows: [
+          ["اسم العميل", primaryCustomer?.name ?? "غير محدد"],
+          ["الهاتف", primaryCustomer?.phone ?? "غير محدد"],
+          ["العنوان", primaryCustomer?.address ?? "غير محدد"],
+          ["الرصيد", formatCurrency(primaryCustomer?.balance ?? 0)],
+          ["عدد المشتريات", primaryCustomer?.purchases ?? 0],
+          ["عدد الأقساط", store.installments.filter((item) => item.customerId === primaryCustomer?.id).length],
+          ["ملاحظات", primaryCustomer?.notes ?? "لا توجد"]
+        ],
+        summary: [
+          { label: "العميل", value: primaryCustomer?.name ?? "غير محدد" },
+          { label: "الرصيد", value: formatCurrency(primaryCustomer?.balance ?? 0) },
+          { label: "الأقساط", value: store.installments.filter((item) => item.customerId === primaryCustomer?.id).length }
+        ]
+      },
+      "supplier-statement": {
+        title: "كشف حساب مورد",
+        subtitle: "ملخص افتراضي لمستحقات الموردين والمعارض الأخرى من بيانات الشراء الحالية.",
+        headers: ["المورد", "عدد السيارات", "إجمالي المشتريات", "المستحق"],
+        rows: Array.from(new Set(store.vehicles.map((vehicle) => vehicle.supplier))).map((supplier) => {
+          const supplierVehicles = store.vehicles.filter((vehicle) => vehicle.supplier === supplier);
+          const total = supplierVehicles.reduce((sum, vehicle) => sum + vehicle.purchasePrice, 0);
+          return [supplier, supplierVehicles.length, formatCurrency(total), formatCurrency(0)];
+        }),
+        summary: [
+          { label: "عدد الموردين", value: new Set(store.vehicles.map((vehicle) => vehicle.supplier)).size },
+          { label: "إجمالي المشتريات", value: formatCurrency(store.vehicles.reduce((sum, vehicle) => sum + vehicle.purchasePrice, 0)) }
+        ]
+      },
       inventory: {
         title: "تقرير المخزون",
         subtitle: "السيارات الموجودة في كل الفروع مع الحالة والربح المتوقع.",
@@ -547,6 +756,23 @@ export function DashboardShell() {
           { label: "عدد الفواتير", value: formatNumber(store.invoices.length) },
           { label: "إجمالي المبيعات", value: formatCurrency(metrics.totalSales) },
           { label: "السيارات المباعة", value: formatNumber(metrics.sold) }
+        ]
+      },
+      "profit-loss": {
+        title: "تقرير الأرباح والخسائر",
+        subtitle: "ملخص الإيرادات والمصروفات والربح المتوقع.",
+        headers: ["البند", "المبلغ"],
+        rows: [
+          ["إجمالي المبيعات", formatCurrency(metrics.totalSales)],
+          ["إجمالي المصروفات", formatCurrency(metrics.expenses)],
+          ["قيمة المخزون", formatCurrency(metrics.inventoryValue)],
+          ["الربح المتوقع", formatCurrency(metrics.expectedProfit)],
+          ["صافي الربح الحالي", formatCurrency(metrics.totalSales - metrics.expenses)]
+        ],
+        summary: [
+          { label: "المبيعات", value: formatCurrency(metrics.totalSales) },
+          { label: "المصروفات", value: formatCurrency(metrics.expenses) },
+          { label: "الصافي", value: formatCurrency(metrics.totalSales - metrics.expenses) }
         ]
       },
       installments: {
@@ -605,6 +831,80 @@ export function DashboardShell() {
           { label: "إجمالي المصروفات", value: formatCurrency(metrics.expenses) }
         ]
       },
+      "available-cars": {
+        title: "تقرير السيارات المتوفرة",
+        subtitle: "السيارات الجاهزة للبيع حالياً.",
+        headers: ["الرقم", "السيارة", "VIN", "الفرع", "سعر البيع"],
+        rows: availableVehicles.map((vehicle) => [
+          vehicle.internalNumber,
+          `${vehicle.manufacturer} ${vehicle.model} ${vehicle.year}`,
+          vehicle.vin,
+          vehicle.branch,
+          formatCurrency(vehicle.salePrice)
+        ]),
+        summary: [
+          { label: "عدد السيارات المتوفرة", value: formatNumber(availableVehicles.length) },
+          { label: "إجمالي القيمة", value: formatCurrency(availableVehicles.reduce((sum, vehicle) => sum + vehicle.salePrice, 0)) }
+        ]
+      },
+      "sold-cars": {
+        title: "تقرير السيارات المباعة",
+        subtitle: "السيارات التي تم اعتماد بيعها.",
+        headers: ["الرقم", "السيارة", "VIN", "الفرع", "سعر البيع"],
+        rows: soldVehicles.map((vehicle) => [
+          vehicle.internalNumber,
+          `${vehicle.manufacturer} ${vehicle.model} ${vehicle.year}`,
+          vehicle.vin,
+          vehicle.branch,
+          formatCurrency(vehicle.salePrice)
+        ]),
+        summary: [
+          { label: "عدد السيارات المباعة", value: formatNumber(soldVehicles.length) },
+          { label: "إجمالي قيمة البيع", value: formatCurrency(soldVehicles.reduce((sum, vehicle) => sum + vehicle.salePrice, 0)) }
+        ]
+      },
+      "reserved-cars": {
+        title: "تقرير السيارات المحجوزة",
+        subtitle: "السيارات المحجوزة مع قيمتها وموقعها.",
+        headers: ["الرقم", "السيارة", "VIN", "الفرع", "سعر البيع"],
+        rows: reservedVehicles.map((vehicle) => [
+          vehicle.internalNumber,
+          `${vehicle.manufacturer} ${vehicle.model} ${vehicle.year}`,
+          vehicle.vin,
+          vehicle.branch,
+          formatCurrency(vehicle.salePrice)
+        ]),
+        summary: [
+          { label: "عدد السيارات المحجوزة", value: formatNumber(reservedVehicles.length) },
+          { label: "إجمالي القيمة", value: formatCurrency(reservedVehicles.reduce((sum, vehicle) => sum + vehicle.salePrice, 0)) }
+        ]
+      },
+      "paid-installments": {
+        title: "تقرير الأقساط المدفوعة",
+        subtitle: "الأقساط التي تم تسجيل دفعها.",
+        headers: ["رقم القسط", "العميل", "المبلغ", "المدفوع", "تاريخ الاستحقاق"],
+        rows: paidInstallments.map((installment) => {
+          const customer = store.customers.find((item) => item.id === installment.customerId);
+          return [installment.id, customer?.name ?? "غير معروف", formatCurrency(installment.amount), formatCurrency(installment.paidAmount), formatDateTime(installment.dueDate)];
+        }),
+        summary: [
+          { label: "عدد الأقساط المدفوعة", value: formatNumber(paidInstallments.length) },
+          { label: "إجمالي المدفوع", value: formatCurrency(paidInstallments.reduce((sum, item) => sum + item.paidAmount, 0)) }
+        ]
+      },
+      "overdue-installments": {
+        title: "تقرير الأقساط المتأخرة",
+        subtitle: "الأقساط التي تحتاج متابعة فورية.",
+        headers: ["رقم القسط", "العميل", "المبلغ", "المدفوع", "تاريخ الاستحقاق"],
+        rows: overdueInstallments.map((installment) => {
+          const customer = store.customers.find((item) => item.id === installment.customerId);
+          return [installment.id, customer?.name ?? "غير معروف", formatCurrency(installment.amount), formatCurrency(installment.paidAmount), formatDateTime(installment.dueDate)];
+        }),
+        summary: [
+          { label: "عدد الأقساط المتأخرة", value: formatNumber(overdueInstallments.length) },
+          { label: "إجمالي المتأخر", value: formatCurrency(overdueInstallments.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)) }
+        ]
+      },
       employees: {
         title: "تقرير الموظفين",
         subtitle: "أداء الموظفين والعمولات والعمليات المسجلة.",
@@ -637,12 +937,153 @@ export function DashboardShell() {
           { label: "عدد الفروع", value: "2" },
           { label: "إجمالي السيارات", value: formatNumber(store.vehicles.length) }
         ]
+      },
+      maintenance: {
+        title: "تقرير الصيانة",
+        subtitle: "تكاليف الصيانة المسجلة على السيارات.",
+        headers: ["السيارة", "الحالة", "تكلفة الصيانة", "الملاحظات"],
+        rows: store.vehicles.map((vehicle) => [
+          `${vehicle.manufacturer} ${vehicle.model}`,
+          statusLabel(vehicle.status),
+          formatCurrency(vehicle.maintenanceCost),
+          vehicle.status === "maintenance" ? "قيد الصيانة حالياً" : "لا توجد ملاحظة حرجة"
+        ]),
+        summary: [
+          { label: "إجمالي الصيانة", value: formatCurrency(store.vehicles.reduce((sum, vehicle) => sum + vehicle.maintenanceCost, 0)) },
+          { label: "سيارات بالصيانة", value: formatNumber(store.vehicles.filter((vehicle) => vehicle.status === "maintenance").length) }
+        ]
+      },
+      insurance: {
+        title: "تقرير التأمين والمستندات",
+        subtitle: "ملخص مستندات السيارات والتأمين والفحص.",
+        headers: ["السيارة", "عدد الصور", "عدد المستندات", "تنبيه"],
+        rows: store.vehicles.map((vehicle) => [
+          `${vehicle.manufacturer} ${vehicle.model}`,
+          vehicle.photos,
+          vehicle.documents,
+          vehicle.documents === 0 ? "يحتاج رفع مستندات" : "مكتمل مبدئياً"
+        ]),
+        summary: [
+          { label: "إجمالي المستندات", value: formatNumber(store.vehicles.reduce((sum, vehicle) => sum + vehicle.documents, 0)) },
+          { label: "إجمالي الصور", value: formatNumber(store.vehicles.reduce((sum, vehicle) => sum + vehicle.photos, 0)) }
+        ]
+      },
+      "cars-table": {
+        title: "جدول السيارات",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير السيارات.",
+        headers: ["الرقم", "الشركة", "الموديل", "السنة", "الحالة", "الفرع"],
+        rows: store.vehicles.map((vehicle) => [
+          vehicle.internalNumber,
+          vehicle.manufacturer,
+          vehicle.model,
+          vehicle.year,
+          statusLabel(vehicle.status),
+          vehicle.branch
+        ]),
+        summary: [{ label: "عدد السجلات", value: formatNumber(store.vehicles.length) }]
+      },
+      "customers-table": {
+        title: "جدول العملاء",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير العملاء.",
+        headers: ["العميل", "الهاتف", "البريد", "العنوان"],
+        rows: store.customers.map((customer) => [customer.name, customer.phone, customer.email, customer.address]),
+        summary: [{ label: "عدد السجلات", value: formatNumber(store.customers.length) }]
+      },
+      "sales-table": {
+        title: "جدول المبيعات",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير المبيعات.",
+        headers: ["الفاتورة", "العميل", "الإجمالي", "الحالة"],
+        rows: store.invoices.map((invoice) => {
+          const customer = store.customers.find((item) => item.id === invoice.customerId);
+          return [invoice.id, customer?.name ?? "غير معروف", formatCurrency(invoice.total), invoice.status];
+        }),
+        summary: [{ label: "عدد السجلات", value: formatNumber(store.invoices.length) }]
+      },
+      "installments-table": {
+        title: "جدول الأقساط",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير الأقساط.",
+        headers: ["القسط", "المبلغ", "المدفوع", "الحالة"],
+        rows: store.installments.map((item) => [item.id, formatCurrency(item.amount), formatCurrency(item.paidAmount), statusCopy[item.status] ?? item.status]),
+        summary: [{ label: "عدد السجلات", value: formatNumber(store.installments.length) }]
+      },
+      "expenses-table": {
+        title: "جدول المصروفات",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير المصروفات.",
+        headers: ["الفئة", "الوصف", "الفرع", "المبلغ"],
+        rows: store.expenses.map((expense) => [expense.category, expense.description, expense.branch, formatCurrency(expense.amount)]),
+        summary: [{ label: "عدد السجلات", value: formatNumber(store.expenses.length) }]
+      },
+      "employees-table": {
+        title: "جدول الموظفين",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير الموظفين.",
+        headers: ["الموظف", "الدور", "الفرع", "الأداء"],
+        rows: [
+          ["سارة ن.", "موظف مبيعات", "Main Showroom", "ممتاز"],
+          ["علي ر.", "موظف مبيعات", "Airport Branch", "جيد"],
+          ["المحاسب", "محاسب", "Main Showroom", "مستقر"]
+        ],
+        summary: [{ label: "عدد السجلات", value: "3" }]
+      },
+      "branches-table": {
+        title: "جدول الفروع",
+        subtitle: "جدول تشغيلي لطباعة أو تصدير الفروع.",
+        headers: ["الفرع", "عدد السيارات", "سيارات متاحة", "سيارات محجوزة"],
+        rows: ["Main Showroom", "Airport Branch"].map((branch) => {
+          const branchVehicles = store.vehicles.filter((vehicle) => vehicle.branch === branch);
+          return [
+            branch,
+            branchVehicles.length,
+            branchVehicles.filter((vehicle) => vehicle.status === "available").length,
+            branchVehicles.filter((vehicle) => vehicle.status === "reserved").length
+          ];
+        }),
+        summary: [{ label: "عدد الفروع", value: "2" }]
       }
     }),
-    [metrics, store.customers, store.expenses, store.installments, store.invoices, store.vehicles]
+    [
+      availableVehicles,
+      metrics,
+      overdueInstallments,
+      paidInstallments,
+      primaryCustomer,
+      primaryInstallment,
+      primaryInvoice,
+      primaryReservation,
+      primaryVehicle,
+      reservedVehicles,
+      soldVehicles,
+      store.customers,
+      store.expenses,
+      store.installments,
+      store.invoices,
+      store.vehicles
+    ]
   );
 
   const activeReport = printableReports[activeReportKey];
+  const filteredVehicles = useMemo(() => {
+    const query = vehicleSearch.trim().toLowerCase();
+    return store.vehicles.filter((vehicle) => {
+      const matchesStatus = vehicleStatusFilter === "all" || vehicle.status === vehicleStatusFilter;
+      const matchesQuery =
+        query.length === 0 ||
+        [
+          vehicle.internalNumber,
+          vehicle.vin,
+          vehicle.plateNumber,
+          vehicle.manufacturer,
+          vehicle.model,
+          vehicle.trim,
+          vehicle.branch
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(query);
+      return matchesStatus && matchesQuery;
+    });
+  }, [store.vehicles, vehicleSearch, vehicleStatusFilter]);
+  const totalVehiclePages = Math.max(1, Math.ceil(filteredVehicles.length / 5));
+  const visibleVehicles = filteredVehicles.slice((vehiclePage - 1) * 5, vehiclePage * 5);
 
   function log(message: string) {
     setActionLog((items) => [message, ...items].slice(0, 8));
@@ -684,6 +1125,114 @@ export function DashboardShell() {
     document.getElementById("print-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
     window.setTimeout(() => window.print(), 350);
     log(`تم فتح ورقة الطباعة لتقرير: ${activeReport.title}.`);
+  }
+
+  function scrollToSection(sectionId: string) {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function runModuleAction(moduleKey: ModuleKey, capability: string) {
+    const actionId = `${moduleKey}-${capability}`;
+    if (loadingAction) {
+      return;
+    }
+
+    setLoadingAction(actionId);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 180));
+
+      if (moduleKey === "cars" || capability.includes("سيارة") || capability.includes("VIN")) {
+        scrollToSection("vehicle-form");
+        log("تم فتح نموذج السيارات وجدول المخزون لتنفيذ الإجراء.");
+        return;
+      }
+
+      if (moduleKey === "customers" || capability.includes("العميل")) {
+        scrollToSection("customer-form");
+        log("تم فتح نموذج العملاء وكشف الحساب.");
+        return;
+      }
+
+      if (moduleKey === "sales" || capability.includes("فاتورة") || capability.includes("بيع")) {
+        setActiveReportKey("invoice");
+        scrollToSection("sales-form");
+        log("تم فتح نموذج فاتورة البيع وتجهيز قالب الفاتورة للطباعة.");
+        return;
+      }
+
+      if (moduleKey === "installments" || capability.includes("قسط") || capability.includes("إيصال")) {
+        setActiveReportKey("installment-contract");
+        scrollToSection("installment-form");
+        log("تم فتح التقسيط وتجهيز عقد التقسيط للطباعة.");
+        return;
+      }
+
+      if (moduleKey === "reports" || capability.includes("PDF") || capability.includes("Excel")) {
+        setActiveReportKey(capability.includes("Excel") ? "cars-table" : "sales");
+        scrollToSection("print-center");
+        log("تم فتح مركز التقارير والطباعة.");
+        return;
+      }
+
+      if (moduleKey === "printing" || capability.includes("طباعة") || capability.includes("A4")) {
+        scrollToSection("print-center");
+        log("تم فتح مركز الطباعة مع ورقة A4.");
+        return;
+      }
+
+      if (moduleKey === "accounting") {
+        setActiveReportKey("profit-loss");
+        scrollToSection("print-center");
+        log("تم تجهيز تقرير الأرباح والخسائر.");
+        return;
+      }
+
+      if (moduleKey === "employees") {
+        setActiveReportKey("employees");
+        scrollToSection("print-center");
+        log("تم تجهيز تقرير الموظفين.");
+        return;
+      }
+
+      if (moduleKey === "branches") {
+        setActiveReportKey("branches");
+        scrollToSection("print-center");
+        log("تم تجهيز تقرير الفروع.");
+        return;
+      }
+
+      if (moduleKey === "purchases" || capability.includes("مورد")) {
+        setActiveReportKey("supplier-statement");
+        scrollToSection("print-center");
+        log("تم تجهيز كشف حساب الموردين.");
+        return;
+      }
+
+      if (moduleKey === "inventory") {
+        setActiveReportKey("inventory");
+        scrollToSection("inventory-table");
+        log("تم فتح جدول المخزون مع البحث والفلترة.");
+        return;
+      }
+
+      if (moduleKey === "backup-sync" || capability.includes("مزامنة")) {
+        await store.synchronize();
+        log("تم تنفيذ المزامنة أو التحقق من الطابور.");
+        return;
+      }
+
+      if (moduleKey === "whatsapp") {
+        shareWhatsApp();
+        return;
+      }
+
+      scrollToSection("print-center");
+      log("تم فتح القسم المناسب للإجراء داخل النظام الحالي.");
+    } catch (error) {
+      log(error instanceof Error ? `فشل تنفيذ الإجراء: ${error.message}` : "فشل تنفيذ الإجراء.");
+    } finally {
+      setLoadingAction(null);
+    }
   }
 
   function shareWhatsApp() {
@@ -845,12 +1394,15 @@ export function DashboardShell() {
                   <button
                     type="button"
                     key={capability}
-                    onClick={() => log(`تم تنفيذ إجراء ${capability} في ${selectedModuleCopy.title}.`)}
+                    onClick={() => void runModuleAction(selectedModule.key, capability)}
+                    disabled={loadingAction === `${selectedModule.key}-${capability}`}
                     className="rounded-2xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-[#d6a84f]/60 hover:bg-[#d6a84f]/10"
                   >
-                    <span className="text-sm font-bold text-white">{capability}</span>
+                    <span className="text-sm font-bold text-white">
+                      {loadingAction === `${selectedModule.key}-${capability}` ? "جاري التنفيذ..." : capability}
+                    </span>
                     <span className="mt-2 block text-xs leading-5 text-white/45">
-                      تم فحص الصلاحية وتسجيل العملية وتخزينها للعمل بدون إنترنت.
+                      يفتح القسم المرتبط أو يجهز التقرير/النموذج المطلوب مباشرة.
                     </span>
                   </button>
                 ))}
@@ -992,6 +1544,7 @@ export function DashboardShell() {
 
           <section className="grid gap-5 2xl:grid-cols-2">
             <form
+              id="vehicle-form"
               className="luxury-panel rounded-[2rem] p-5"
               onSubmit={vehicleForm.handleSubmit((data) => {
                 const parsed = vehicleSchema.safeParse(data);
@@ -1038,6 +1591,7 @@ export function DashboardShell() {
 
             <div className="space-y-5">
               <form
+                id="customer-form"
                 className="luxury-panel rounded-[2rem] p-5"
                 onSubmit={customerForm.handleSubmit((data) => {
                   const parsed = customerSchema.safeParse(data);
@@ -1070,6 +1624,7 @@ export function DashboardShell() {
               </form>
 
               <form
+                id="lead-form"
                 className="luxury-panel rounded-[2rem] p-5"
                 onSubmit={leadForm.handleSubmit((data) => {
                   const parsed = leadSchema.safeParse(data);
@@ -1123,6 +1678,7 @@ export function DashboardShell() {
 
           <section className="grid gap-5 xl:grid-cols-3">
             <form
+              id="reservation-form"
               className="luxury-panel rounded-[2rem] p-5"
               onSubmit={reservationForm.handleSubmit((data) => {
                 const parsed = reservationSchema.safeParse(data);
@@ -1154,6 +1710,7 @@ export function DashboardShell() {
             </form>
 
             <form
+              id="sales-form"
               className="luxury-panel rounded-[2rem] p-5"
               onSubmit={invoiceForm.handleSubmit((data) => {
                 const parsed = invoiceSchema.safeParse(data);
@@ -1194,6 +1751,7 @@ export function DashboardShell() {
 
             <div className="space-y-5">
               <form
+                id="expense-form"
                 className="luxury-panel rounded-[2rem] p-5"
                 onSubmit={expenseForm.handleSubmit((data) => {
                   const parsed = expenseSchema.safeParse(data);
@@ -1226,6 +1784,7 @@ export function DashboardShell() {
               </form>
 
               <form
+                id="installment-form"
                 className="luxury-panel rounded-[2rem] p-5"
                 onSubmit={paymentForm.handleSubmit((data) => {
                   const parsed = installmentPaymentSchema.safeParse(data);
@@ -1259,11 +1818,66 @@ export function DashboardShell() {
             </div>
           </section>
 
-          <section className="grid gap-5 xl:grid-cols-[1.4fr_.6fr]">
+          <section id="inventory-table" className="grid gap-5 xl:grid-cols-[1.4fr_.6fr]">
             <div className="luxury-panel rounded-[2rem] p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-xl font-black">مخزون السيارات</h3>
-                <span className="text-sm text-white/45">{formatNumber(store.vehicles.length)} سيارة</span>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <h3 className="text-xl font-black">مخزون السيارات</h3>
+                  <p className="mt-1 text-sm text-white/45">
+                    جدول منظم مع بحث وفلترة وتصدير وطباعة، ويعرض {formatNumber(filteredVehicles.length)} من {formatNumber(store.vehicles.length)} سيارة.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <SecondaryButton
+                    onClick={() => {
+                      setVehicleSearch("");
+                      setVehicleStatusFilter("all");
+                      log("تمت إعادة تعيين فلتر جدول السيارات.");
+                    }}
+                  >
+                    إعادة تعيين الفلتر
+                  </SecondaryButton>
+                  <SecondaryButton
+                    onClick={() => {
+                      setActiveReportKey("cars-table");
+                      scrollToSection("print-center");
+                    }}
+                  >
+                    معاينة الطباعة
+                  </SecondaryButton>
+                  <SecondaryButton onClick={exportExcel}>Excel</SecondaryButton>
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-3 md:grid-cols-[1fr_220px]">
+                <Field label="بحث في السيارات">
+                  <input
+                    className={inputClass}
+                    value={vehicleSearch}
+                    onChange={(event) => {
+                      setVehicleSearch(event.target.value);
+                      setVehiclePage(1);
+                    }}
+                    placeholder="ابحث بالرقم، VIN، الشركة، الموديل، اللوحة..."
+                  />
+                </Field>
+                <Field label="فلترة الحالة">
+                  <select
+                    className={inputClass}
+                    value={vehicleStatusFilter}
+                    onChange={(event) => {
+                      setVehicleStatusFilter(event.target.value as "all" | Vehicle["status"]);
+                      setVehiclePage(1);
+                    }}
+                  >
+                    <option value="all">كل الحالات</option>
+                    <option value="available">متاحة</option>
+                    <option value="reserved">محجوزة</option>
+                    <option value="sold">مباعة</option>
+                    <option value="maintenance">صيانة</option>
+                    <option value="not-ready">غير جاهزة</option>
+                  </select>
+                </Field>
               </div>
               <div className="mt-4 overflow-x-auto">
                 <table className="w-full min-w-[820px] text-sm">
@@ -1279,7 +1893,14 @@ export function DashboardShell() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/10">
-                    {store.vehicles.map((vehicle) => {
+                    {visibleVehicles.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="py-10 text-center text-white/55">
+                          لا توجد سيارات مطابقة للبحث أو الفلتر الحالي.
+                        </td>
+                      </tr>
+                    )}
+                    {visibleVehicles.map((vehicle) => {
                       const profit =
                         vehicle.salePrice - vehicle.purchasePrice - vehicle.maintenanceCost - vehicle.transportationCost;
                       return (
@@ -1312,7 +1933,13 @@ export function DashboardShell() {
                                   <button
                                     type="button"
                                     key={status}
-                                    onClick={() => store.updateVehicleStatus(vehicle.id, status)}
+                                    onClick={() => {
+                                      if (status === "sold" && !window.confirm("هل تريد تغيير حالة السيارة إلى مباعة؟")) {
+                                        return;
+                                      }
+                                      store.updateVehicleStatus(vehicle.id, status);
+                                      log(`تم تحديث حالة ${vehicle.internalNumber} إلى ${statusLabel(status)}.`);
+                                    }}
                                     className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white/60 hover:border-[#d6a84f]/50 hover:text-[#f3c96b]"
                                   >
                                     {statusLabel(status)}
@@ -1326,6 +1953,29 @@ export function DashboardShell() {
                     })}
                   </tbody>
                 </table>
+              </div>
+              <div className="mt-4 flex flex-col gap-3 text-sm text-white/60 sm:flex-row sm:items-center sm:justify-between">
+                <span>
+                  صفحة {formatNumber(vehiclePage)} من {formatNumber(totalVehiclePages)}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={vehiclePage <= 1}
+                    onClick={() => setVehiclePage((page) => Math.max(1, page - 1))}
+                    className="rounded-lg border border-white/10 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    السابق
+                  </button>
+                  <button
+                    type="button"
+                    disabled={vehiclePage >= totalVehiclePages}
+                    onClick={() => setVehiclePage((page) => Math.min(totalVehiclePages, page + 1))}
+                    className="rounded-lg border border-white/10 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    التالي
+                  </button>
+                </div>
               </div>
             </div>
 
