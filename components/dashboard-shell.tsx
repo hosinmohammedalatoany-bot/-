@@ -272,6 +272,26 @@ const auditActionCopy: Record<string, string> = {
   "Vehicle status updated": "تم تحديث حالة السيارة"
 };
 
+type ReportKey = "inventory" | "sales" | "installments" | "customers" | "expenses" | "employees" | "branches";
+
+interface PrintableReport {
+  title: string;
+  subtitle: string;
+  headers: string[];
+  rows: Array<Array<string | number>>;
+  summary: Array<{ label: string; value: string | number }>;
+}
+
+const reportTabs: Array<{ key: ReportKey; title: string }> = [
+  { key: "inventory", title: "تقرير المخزون" },
+  { key: "sales", title: "تقرير المبيعات" },
+  { key: "installments", title: "تقرير الأقساط" },
+  { key: "customers", title: "تقرير العملاء" },
+  { key: "expenses", title: "تقرير المصروفات" },
+  { key: "employees", title: "تقرير الموظفين" },
+  { key: "branches", title: "تقرير الفروع" }
+];
+
 const roleCopy: Record<string, { role: string; permissions: string[] }> = {
   "Super Admin": {
     role: "مدير النظام",
@@ -414,6 +434,8 @@ export function DashboardShell() {
   const setNetworkStatus = useShowroomStore((state) => state.setNetworkStatus);
   const [actionLog, setActionLog] = useState<string[]>(["النظام جاهز. طابور العمل بدون إنترنت مفعل."]);
   const [rtl, setRtl] = useState(true);
+  const [activeReportKey, setActiveReportKey] = useState<ReportKey>("inventory");
+  const [printTimestamp, setPrintTimestamp] = useState(() => new Date().toISOString());
   const vehicleForm = useValidatedForm<VehicleInput>(defaultVehicle);
   const customerForm = useValidatedForm<CustomerInput>(defaultCustomer);
   const leadForm = useValidatedForm<LeadInput>(defaultLead);
@@ -483,6 +505,145 @@ export function DashboardShell() {
     };
   }, [store.vehicles, store.invoices, store.expenses, store.installments]);
 
+  const printableReports = useMemo<Record<ReportKey, PrintableReport>>(
+    () => ({
+      inventory: {
+        title: "تقرير المخزون",
+        subtitle: "السيارات الموجودة في كل الفروع مع الحالة والربح المتوقع.",
+        headers: ["الرقم", "السيارة", "VIN", "الحالة", "الفرع", "سعر البيع", "الربح المتوقع"],
+        rows: store.vehicles.map((vehicle) => [
+          vehicle.internalNumber,
+          `${vehicle.manufacturer} ${vehicle.model} ${vehicle.year}`,
+          vehicle.vin,
+          statusLabel(vehicle.status),
+          vehicle.branch,
+          formatCurrency(vehicle.salePrice),
+          formatCurrency(vehicle.salePrice - vehicle.purchasePrice - vehicle.maintenanceCost - vehicle.transportationCost)
+        ]),
+        summary: [
+          { label: "عدد السيارات", value: formatNumber(store.vehicles.length) },
+          { label: "قيمة المخزون", value: formatCurrency(metrics.inventoryValue) },
+          { label: "الربح المتوقع", value: formatCurrency(metrics.expectedProfit) }
+        ]
+      },
+      sales: {
+        title: "تقرير المبيعات",
+        subtitle: "الفواتير الصادرة وحالة البيع وربطها بالعميل والسيارة.",
+        headers: ["رقم الفاتورة", "العميل", "السيارة", "طريقة الدفع", "الإجمالي", "الخصم", "التاريخ"],
+        rows: store.invoices.map((invoice) => {
+          const customer = store.customers.find((item) => item.id === invoice.customerId);
+          const vehicle = store.vehicles.find((item) => item.id === invoice.vehicleId);
+          return [
+            invoice.id,
+            customer?.name ?? "غير معروف",
+            vehicle ? `${vehicle.manufacturer} ${vehicle.model}` : "غير معروف",
+            invoice.type,
+            formatCurrency(invoice.total),
+            formatCurrency(invoice.discount),
+            formatDateTime(invoice.createdAt)
+          ];
+        }),
+        summary: [
+          { label: "عدد الفواتير", value: formatNumber(store.invoices.length) },
+          { label: "إجمالي المبيعات", value: formatCurrency(metrics.totalSales) },
+          { label: "السيارات المباعة", value: formatNumber(metrics.sold) }
+        ]
+      },
+      installments: {
+        title: "تقرير الأقساط",
+        subtitle: "الأقساط المدفوعة والمتأخرة والمستحقة حسب العملاء والسيارات.",
+        headers: ["رقم القسط", "العميل", "السيارة", "تاريخ الاستحقاق", "المبلغ", "المدفوع", "الحالة"],
+        rows: store.installments.map((installment) => {
+          const customer = store.customers.find((item) => item.id === installment.customerId);
+          const vehicle = store.vehicles.find((item) => item.id === installment.vehicleId);
+          return [
+            installment.id,
+            customer?.name ?? "غير معروف",
+            vehicle ? `${vehicle.manufacturer} ${vehicle.model}` : "غير معروف",
+            formatDateTime(installment.dueDate),
+            formatCurrency(installment.amount),
+            formatCurrency(installment.paidAmount),
+            statusCopy[installment.status] ?? installment.status
+          ];
+        }),
+        summary: [
+          { label: "الأقساط المستحقة اليوم", value: formatNumber(metrics.todaysInstallments) },
+          { label: "الأقساط المتأخرة", value: formatNumber(metrics.overdueInstallments) },
+          { label: "إجمالي الأقساط", value: formatNumber(store.installments.length) }
+        ]
+      },
+      customers: {
+        title: "تقرير العملاء",
+        subtitle: "بيانات العملاء والأرصدة وسجل الشراء.",
+        headers: ["العميل", "الهاتف", "البريد", "العنوان", "الرصيد", "عدد المشتريات"],
+        rows: store.customers.map((customer) => [
+          customer.name,
+          customer.phone,
+          customer.email,
+          customer.address,
+          formatCurrency(customer.balance),
+          customer.purchases
+        ]),
+        summary: [
+          { label: "عدد العملاء", value: formatNumber(store.customers.length) },
+          { label: "إجمالي أرصدة العملاء", value: formatCurrency(store.customers.reduce((sum, customer) => sum + customer.balance, 0)) }
+        ]
+      },
+      expenses: {
+        title: "تقرير المصروفات",
+        subtitle: "المصروفات المسجلة حسب الفئة والفرع.",
+        headers: ["الفئة", "الوصف", "الفرع", "المبلغ", "التاريخ"],
+        rows: store.expenses.map((expense) => [
+          expense.category,
+          expense.description,
+          expense.branch,
+          formatCurrency(expense.amount),
+          formatDateTime(expense.createdAt)
+        ]),
+        summary: [
+          { label: "عدد المصروفات", value: formatNumber(store.expenses.length) },
+          { label: "إجمالي المصروفات", value: formatCurrency(metrics.expenses) }
+        ]
+      },
+      employees: {
+        title: "تقرير الموظفين",
+        subtitle: "أداء الموظفين والعمولات والعمليات المسجلة.",
+        headers: ["الموظف", "الدور", "الفرع", "المبيعات", "العمولة"],
+        rows: [
+          ["سارة ن.", "موظف مبيعات", "Main Showroom", formatCurrency(48900), formatCurrency(950)],
+          ["علي ر.", "موظف مبيعات", "Airport Branch", formatCurrency(23600), formatCurrency(420)],
+          ["المحاسب", "محاسب", "Main Showroom", formatCurrency(metrics.totalSales), formatCurrency(0)]
+        ],
+        summary: [
+          { label: "أفضل موظف", value: "سارة ن." },
+          { label: "إجمالي المبيعات", value: formatCurrency(metrics.totalSales) }
+        ]
+      },
+      branches: {
+        title: "تقرير الفروع",
+        subtitle: "ملخص السيارات والمبيعات والأرباح حسب الفرع.",
+        headers: ["الفرع", "عدد السيارات", "قيمة المخزون", "سيارات محجوزة", "سيارات مباعة"],
+        rows: ["Main Showroom", "Airport Branch"].map((branch) => {
+          const branchVehicles = store.vehicles.filter((vehicle) => vehicle.branch === branch);
+          return [
+            branch,
+            branchVehicles.length,
+            formatCurrency(branchVehicles.reduce((sum, vehicle) => sum + vehicle.purchasePrice, 0)),
+            branchVehicles.filter((vehicle) => vehicle.status === "reserved").length,
+            branchVehicles.filter((vehicle) => vehicle.status === "sold").length
+          ];
+        }),
+        summary: [
+          { label: "عدد الفروع", value: "2" },
+          { label: "إجمالي السيارات", value: formatNumber(store.vehicles.length) }
+        ]
+      }
+    }),
+    [metrics, store.customers, store.expenses, store.installments, store.invoices, store.vehicles]
+  );
+
+  const activeReport = printableReports[activeReportKey];
+
   function log(message: string) {
     setActionLog((items) => [message, ...items].slice(0, 8));
   }
@@ -499,34 +660,30 @@ export function DashboardShell() {
 
   function exportExcel() {
     const rows = [
-      ["الرقم الداخلي", "VIN", "السيارة", "الحالة", "سعر الشراء", "سعر البيع", "الفرع"],
-      ...store.vehicles.map((vehicle) => [
-        vehicle.internalNumber,
-        vehicle.vin,
-        `${vehicle.manufacturer} ${vehicle.model}`,
-        vehicle.status,
-        vehicle.purchasePrice,
-        vehicle.salePrice,
-        vehicle.branch
-      ])
+      activeReport.headers,
+      ...activeReport.rows
     ];
-    createTextDownload("baraa-raed-inventory.csv", rows.map((row) => row.join(",")).join("\n"), "text/csv");
-    log("تم تصدير ملف المخزون بصيغة CSV لاستخدامه في Excel.");
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
+    createTextDownload(`baraa-raed-${activeReportKey}.csv`, csv, "text/csv");
+    log(`تم تصدير ${activeReport.title} بصيغة CSV لاستخدامه في Excel.`);
   }
 
   function exportPdf() {
-    const html = `<html dir="rtl" lang="ar"><head><title>تقرير براء رائد</title></head><body><h1>تقرير مبيعات براء رائد</h1><pre>${JSON.stringify(
-      metrics,
-      null,
-      2
-    )}</pre></body></html>`;
-    createTextDownload("baraa-raed-report.html", html, "text/html");
-    log("تم تصدير تقرير قابل للطباعة. افتحه واطبعه بصيغة PDF.");
+    const tableRows = activeReport.rows
+      .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+      .join("");
+    const html = `<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8" /><title>${activeReport.title}</title><style>body{font-family:Tahoma,Arial,sans-serif;margin:32px;color:#111}h1{margin:0 0 8px}table{width:100%;border-collapse:collapse;margin-top:24px}th,td{border:1px solid #ddd;padding:10px;text-align:right}th{background:#111;color:#d6a84f}.summary{display:flex;gap:12px;margin-top:20px}.summary div{border:1px solid #ddd;padding:10px;border-radius:10px}</style></head><body><h1>${activeReport.title}</h1><p>${activeReport.subtitle}</p><div class="summary">${activeReport.summary
+      .map((item) => `<div><strong>${item.label}</strong><br/>${item.value}</div>`)
+      .join("")}</div><table><thead><tr>${activeReport.headers.map((header) => `<th>${header}</th>`).join("")}</tr></thead><tbody>${tableRows}</tbody></table></body></html>`;
+    createTextDownload(`baraa-raed-${activeReportKey}-print.html`, html, "text/html");
+    log(`تم تنزيل ${activeReport.title} كملف HTML قابل للطباعة أو الحفظ PDF.`);
   }
 
   function printCenter() {
-    window.print();
-    log("تم فتح مركز الطباعة للوحة الحالية.");
+    setPrintTimestamp(new Date().toISOString());
+    document.getElementById("print-center")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => window.print(), 350);
+    log(`تم فتح ورقة الطباعة لتقرير: ${activeReport.title}.`);
   }
 
   function shareWhatsApp() {
@@ -724,6 +881,113 @@ export function DashboardShell() {
                 </div>
               </div>
             </div>
+          </section>
+
+          <section id="print-center" className="luxury-panel rounded-[2rem] p-5">
+            <div className="no-print flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[#d6a84f]">مركز الطباعة والتقارير</p>
+                <h3 className="mt-2 text-2xl font-black">ورقة طباعة ظاهرة وجاهزة</h3>
+                <p className="mt-1 text-sm text-white/55">
+                  اختر التقرير، ثم اطبعه مباشرة أو نزله كملف قابل للحفظ PDF أو CSV لبرنامج Excel.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <PrimaryButton onClick={printCenter}>طباعة التقرير</PrimaryButton>
+                <SecondaryButton onClick={exportPdf}>تنزيل PDF / HTML</SecondaryButton>
+                <SecondaryButton onClick={exportExcel}>تنزيل Excel</SecondaryButton>
+              </div>
+            </div>
+
+            <div className="no-print mt-5 flex flex-wrap gap-2">
+              {reportTabs.map((report) => (
+                <button
+                  type="button"
+                  key={report.key}
+                  onClick={() => {
+                    setActiveReportKey(report.key);
+                    setPrintTimestamp(new Date().toISOString());
+                    log(`تم اختيار ${report.title} للطباعة.`);
+                  }}
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                    activeReportKey === report.key
+                      ? "border-[#d6a84f]/70 bg-[#d6a84f]/15 text-[#f3c96b]"
+                      : "border-white/10 bg-white/5 text-white/70 hover:border-[#d6a84f]/50"
+                  )}
+                >
+                  {report.title}
+                </button>
+              ))}
+            </div>
+
+            <article
+              id="print-sheet"
+              className="mt-6 min-h-[720px] rounded-[1.5rem] bg-white p-6 text-[#111827] shadow-2xl print:shadow-none"
+            >
+              <header className="flex flex-col gap-4 border-b-2 border-[#d6a84f] pb-5 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#96703a]">Baraa Raed Car Showroom Management System</p>
+                  <h2 className="mt-1 text-3xl font-black">براء رائد لإدارة معارض السيارات</h2>
+                  <p className="mt-2 text-sm text-gray-600">العنوان: بغداد - الهاتف: +964 770 000 0000</p>
+                </div>
+                <div className="rounded-2xl border border-[#d6a84f] px-4 py-3 text-sm">
+                  <div>تاريخ الطباعة: {formatDateTime(printTimestamp)}</div>
+                  <div>المستخدم: المدير العام</div>
+                  <div>نوع التقرير: {activeReport.title}</div>
+                </div>
+              </header>
+
+              <section className="mt-6">
+                <h1 className="text-2xl font-black">{activeReport.title}</h1>
+                <p className="mt-2 text-sm text-gray-600">{activeReport.subtitle}</p>
+              </section>
+
+              <section className="mt-6 grid gap-3 sm:grid-cols-3">
+                {activeReport.summary.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-xs text-gray-500">{item.label}</p>
+                    <p className="mt-1 text-lg font-black">{item.value}</p>
+                  </div>
+                ))}
+              </section>
+
+              <div className="mt-6 overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-sm">
+                  <thead>
+                    <tr className="bg-[#111827] text-[#f3c96b]">
+                      {activeReport.headers.map((header) => (
+                        <th key={header} className="border border-gray-300 p-3 text-right">
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activeReport.rows.map((row, rowIndex) => (
+                      <tr key={`${activeReportKey}-${rowIndex}`} className={rowIndex % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        {row.map((cell, cellIndex) => (
+                          <td key={`${activeReportKey}-${rowIndex}-${cellIndex}`} className="border border-gray-300 p-3">
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <footer className="mt-8 grid gap-6 border-t border-gray-200 pt-6 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="font-bold">توقيع المدير</p>
+                  <div className="mt-10 border-t border-gray-400 pt-2">الاسم والتوقيع</div>
+                </div>
+                <div>
+                  <p className="font-bold">ختم الشركة</p>
+                  <div className="mt-10 border-t border-gray-400 pt-2">Baraa Raed</div>
+                </div>
+              </footer>
+            </article>
           </section>
 
           <section className="grid gap-5 2xl:grid-cols-2">
