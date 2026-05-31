@@ -52,7 +52,16 @@ if ! curl -sf "http://${HOST}:${PORT}/api/health" >/dev/null 2>&1; then
   else
     tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "${SESSION_NAME}" -c "$ROOT" -- "${SHELL:-bash}" -l
   fi
-  tmux -f /exec-daemon/tmux.portal.conf send-keys -t "${SESSION_NAME}:0.0" "cd '$ROOT' && set -a && [ -f .env.local ] && . ./.env.local; set +a && HOSTNAME=0.0.0.0 PORT=${PORT} npm run start" C-m
+  # standalone output: copy assets then run server.js (avoids broken `next start` warning)
+  if [ -f ".next/standalone/server.js" ]; then
+    mkdir -p .next/standalone/.next
+    cp -r public .next/standalone/ 2>/dev/null || true
+    cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
+    START_CMD="cd '$ROOT/.next/standalone' && set -a && [ -f '$ROOT/.env.local' ] && . '$ROOT/.env.local'; set +a && HOSTNAME=0.0.0.0 PORT=${PORT} node server.js"
+  else
+    START_CMD="cd '$ROOT' && set -a && [ -f .env.local ] && . ./.env.local; set +a && HOSTNAME=0.0.0.0 PORT=${PORT} npm run start"
+  fi
+  tmux -f /exec-daemon/tmux.portal.conf send-keys -t "${SESSION_NAME}:0.0" "$START_CMD" C-m
   for i in $(seq 1 30); do
     if curl -sf "http://${HOST}:${PORT}/api/health" >/dev/null 2>&1; then
       break

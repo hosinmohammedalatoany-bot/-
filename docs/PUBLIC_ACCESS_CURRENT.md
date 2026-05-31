@@ -1,16 +1,18 @@
 # رابط التشغيل الحالي (جلسة Cloud Agent)
 
-> هذا الرابط مؤقت من Cloudflare Quick Tunnel ويتوقف عند إيقاف `cloudflared` أو السيرفر. إذا ظهر `ERR_FAILED` أعد تشغيل النفق (`npm run tunnel`).
+> هذا الرابط **مؤقت** من Cloudflare Quick Tunnel. يتوقف عند إيقاف السيرفر أو النفق، و**يتغيّر العنوان** عند كل إعادة تشغيل. إذا ظهر `ERR_FAILED` أو «لا يمكن الوصول» — الرابط القديم انتهى؛ نفّذ `npm run tunnel` واستخدم الرابط الجديد من المخرجات.
 
 | البند | القيمة |
 |--------|--------|
-| **الرابط العام** | https://physically-prepared-michael-authentication.trycloudflare.com |
-| تسجيل الدخول | https://physically-prepared-michael-authentication.trycloudflare.com/login |
-| **إنشاء حساب** (يعمل مباشرة — أول حساب = مدير النظام) | https://physically-prepared-michael-authentication.trycloudflare.com/register |
-| إعداد بديل | https://physically-prepared-michael-authentication.trycloudflare.com/setup |
-| لوحة التحكم | https://physically-prepared-michael-authentication.trycloudflare.com/dashboard/dashboard |
+| **الرابط العام (نشط الآن)** | https://tumor-harvey-legislative-abraham.trycloudflare.com |
+| تسجيل الدخول | https://tumor-harvey-legislative-abraham.trycloudflare.com/login |
+| **إنشاء حساب** (أول حساب = مدير النظام) | https://tumor-harvey-legislative-abraham.trycloudflare.com/register |
+| إعداد بديل | https://tumor-harvey-legislative-abraham.trycloudflare.com/setup |
+| لوحة التحكم | https://tumor-harvey-legislative-abraham.trycloudflare.com/dashboard/dashboard |
 
-**آخر تحديث:** 2026-05-31 — أُزيلت رسائل PUBLIC_BASE_URL من الواجهة؛ النفق يستخدم الرابط الحالي تلقائياً.
+**رابط سابق (لم يعد يعمل):** `https://feeds-collectables-part-more.trycloudflare.com`
+
+**آخر تحديث:** 2026-05-31 — أُعيد تشغيل التطبيق + نفق جديد بعد `ERR_FAILED`.
 
 ## إعادة تشغيل الرابط
 
