@@ -34,6 +34,7 @@ export function PrintDocumentActions(props: Props) {
       <PrintToolbar
         title={props.title}
         printHtmlBody={props.getHtml()}
+        getPrintHtml={props.getHtml}
         onPrinted={props.onPrinted}
         csvFilename={props.csvFilename}
         csvHeaders={props.csvHeaders}
@@ -88,6 +89,7 @@ export function PrintDocumentActions(props: Props) {
       <PrintToolbar
         title={props.title}
         printHtmlBody={props.getHtml()}
+        getPrintHtml={props.getHtml}
         onPrinted={props.onPrinted}
         csvFilename={props.csvFilename}
         csvHeaders={props.csvHeaders}

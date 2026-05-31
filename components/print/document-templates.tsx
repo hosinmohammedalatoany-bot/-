@@ -136,10 +136,10 @@ export function buildSaleContractPrintHtml(params: {
       <p>يُعتبر هذا العقد ملزماً للطرفين عند التوقيع.</p>
     </div>
     ${buildPrintCodesBlockHtml({
-      qrPayload: vehicle?.id ? vehicleVerifyUrl(vehicle.id) : invoiceVerifyUrl(contractNumber),
-      barcodeValue: vehicle?.internalNumber || contractNumber,
-      qrCaption: vehicle?.id ? "امسح لبيانات السيارة" : "امسح للتحقق من العقد",
-      barcodeCaption: vehicle?.internalNumber ? `كود السيارة: ${vehicle.internalNumber}` : `عقد: ${contractNumber}`
+      qrPayload: reportVerifyUrl(contractNumber, "عقد بيع"),
+      barcodeValue: contractNumber,
+      qrCaption: "امسح للتحقق من العقد",
+      barcodeCaption: `عقد: ${contractNumber}`
     })}
   `;
 
@@ -239,17 +239,21 @@ export function buildTableReportHtml(
   title: string,
   headers: string[],
   rows: string[][],
-  summary?: { label: string; value: string }[]
+  summary?: { label: string; value: string }[],
+  options?: { periodLabel?: string; reportId?: string }
 ) {
   const settings = loadCompanyPrintSettings();
   const head = headers.map((h) => `<th>${h}</th>`).join("");
   const body = rows.map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("");
-  const reportId = `RPT-${Date.now().toString(36).toUpperCase()}`;
+  const reportId = options?.reportId ?? `RPT-${Date.now().toString(36).toUpperCase()}`;
+  const periodRow = options?.periodLabel
+    ? `<span><strong>الفترة:</strong> ${options.periodLabel}</span>`
+    : "";
   const summaryHtml = summary?.length
-    ? `<div class="print-report-summary">${summary
+    ? `<div class="print-report-summary">${periodRow}${summary
         .map((s) => `<span><strong>${s.label}:</strong> ${s.value}</span>`)
         .join("")}</div>`
-    : `<div class="print-report-summary"><span><strong>عدد السجلات:</strong> ${rows.length}</span></div>`;
+    : `<div class="print-report-summary">${periodRow}<span><strong>عدد السجلات:</strong> ${rows.length}</span></div>`;
 
   const table = `${summaryHtml}<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
   const codes = buildPrintCodesBlockHtml({
@@ -266,6 +270,54 @@ export function buildTableReportHtml(
       documentDate: new Date()
     },
     `${table}${codes}`,
+    settings
+  );
+}
+
+export function buildProfitLossPrintHtml(params: {
+  reportId?: string;
+  revenues: number;
+  expenses: number;
+  netProfit: number;
+  periodLabel?: string;
+  expenseRows?: { category: string; amount: number }[];
+}) {
+  const settings = loadCompanyPrintSettings();
+  const reportId = params.reportId ?? `RPT-PL-${Date.now().toString(36).toUpperCase()}`;
+  const period = params.periodLabel ? `<p><strong>الفترة:</strong> ${params.periodLabel}</p>` : "";
+
+  const expenseTable =
+    params.expenseRows?.length ?
+      `<h2>تفصيل المصروفات</h2>
+      <table><thead><tr><th>الفئة</th><th>المبلغ</th></tr></thead><tbody>
+      ${params.expenseRows.map((e) => `<tr><td>${e.category}</td><td class="num">${formatCurrency(e.amount)}</td></tr>`).join("")}
+      </tbody></table>`
+    : "";
+
+  const body = `
+    ${period}
+    <h2>ملخص الأرباح والخسائر</h2>
+    <table class="print-summary-table">
+      <tr><th>إجمالي الإيرادات (المبيعات)</th><td class="num">${formatCurrency(params.revenues)}</td></tr>
+      <tr><th>إجمالي المصروفات</th><td class="num">${formatCurrency(params.expenses)}</td></tr>
+      <tr><th>صافي الربح / الخسارة</th><td class="num"><strong>${formatCurrency(params.netProfit)}</strong></td></tr>
+    </table>
+    ${expenseTable}
+    ${buildPrintCodesBlockHtml({
+      qrPayload: reportVerifyUrl(reportId, "أرباح وخسائر"),
+      barcodeValue: reportId,
+      qrCaption: "تقرير مالي رسمي",
+      barcodeCaption: reportId
+    })}
+  `;
+
+  return wrapPrintDocument(
+    {
+      documentTitle: "بيان الأرباح والخسائر",
+      documentNumber: reportId,
+      documentDate: new Date()
+    },
+    body,
     settings
   );
 }

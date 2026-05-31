@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
 import { buildPaymentReceiptPrintHtml, buildTableReportHtml } from "@/components/print/document-templates";
+import { PrintDocumentActions } from "@/components/print/print-document-actions";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { SelectCustomer, SelectVehicle } from "@/components/modules/form-selectors";
 import { ModulePage } from "@/components/modules/module-page";
@@ -115,15 +116,17 @@ export function ReservationsModule() {
                       <td>{formatCurrency(r.deposit)}</td>
                       <td>{formatDateTime(r.expiresAt)}</td>
                       <td>
-                        <PrintToolbar
-                          title={`حجز ${r.id}`}
-                          printHtmlBody={buildPaymentReceiptPrintHtml({
-                            receiptNumber: `RES-${r.id}`,
-                            amount: r.deposit,
-                            payerName: c?.name,
-                            reference: r.id,
-                            note: "إيصال حجز"
-                          })}
+                        <PrintDocumentActions
+                          title={`إيصال حجز ${r.id}`}
+                          getHtml={() =>
+                            buildPaymentReceiptPrintHtml({
+                              receiptNumber: `RES-${r.id}`,
+                              amount: r.deposit,
+                              payerName: c?.name,
+                              reference: r.id,
+                              note: "إيصال حجز"
+                            })
+                          }
                         />
                       </td>
                     </tr>

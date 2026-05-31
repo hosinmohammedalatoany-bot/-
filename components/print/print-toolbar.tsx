@@ -3,25 +3,38 @@
 import { useState } from "react";
 import { ar } from "@/lib/i18n/ar";
 import { exportHtmlAsPdf, exportTableCsv, previewPrintHtml, printHtml } from "@/lib/print";
+import { PrintPreviewDialog } from "@/components/print/print-preview-dialog";
 import { SecondaryButton } from "@/components/ui/primitives";
 
 export function PrintToolbar({
   title,
   printHtmlBody,
+  getPrintHtml,
   csvFilename,
   csvHeaders,
   csvRows,
-  onPrinted
+  onPrinted,
+  embedPreview = true
 }: {
   title: string;
+  /** HTML جاهز للطباعة (يُقيَّم عند كل عرض إن وُجد getPrintHtml) */
   printHtmlBody: string;
+  getPrintHtml?: () => string;
   csvFilename?: string;
   csvHeaders?: string[];
   csvRows?: (string | number)[][];
   onPrinted?: () => void;
+  /** معاينة داخل نافذة بنفس HTML الطباعة (WYSIWYG) */
+  embedPreview?: boolean;
 }) {
   const [busy, setBusy] = useState<"print" | "preview" | "pdf" | "csv" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewSession, setPreviewSession] = useState(0);
+
+  function resolveHtml() {
+    return getPrintHtml?.() ?? printHtmlBody;
+  }
 
   async function run(
     action: "print" | "preview" | "pdf" | "csv",
@@ -50,7 +63,7 @@ export function PrintToolbar({
             void run("print", async () => {
               printHtml({
                 title,
-                html: printHtmlBody,
+                html: resolveHtml(),
                 onPrinted,
                 onError: setError
               });
@@ -64,18 +77,23 @@ export function PrintToolbar({
           disabled={Boolean(busy)}
           onClick={() =>
             void run("preview", async () => {
-              previewPrintHtml({ title, html: printHtmlBody });
+              if (embedPreview) {
+                setPreviewSession((n) => n + 1);
+                setPreviewOpen(true);
+              } else {
+                previewPrintHtml({ title, html: resolveHtml() });
+              }
             })
           }
         >
-          {ar.printPreview}
+          {embedPreview ? "معاينة المستند" : ar.printPreview}
         </SecondaryButton>
         <SecondaryButton
           loading={busy === "pdf"}
           disabled={Boolean(busy)}
           onClick={() =>
             void run("pdf", async () => {
-              exportHtmlAsPdf(`${title}.pdf`, printHtmlBody);
+              exportHtmlAsPdf(`${title}.pdf`, resolveHtml());
               onPrinted?.();
             })
           }
@@ -98,6 +116,19 @@ export function PrintToolbar({
         )}
       </div>
       {error ? <p className="text-xs text-red-300">{error}</p> : null}
+      {embedPreview ? (
+        <PrintPreviewDialog
+          open={previewOpen}
+          sessionKey={previewSession}
+          onClose={() => setPreviewOpen(false)}
+          title={title}
+          buildStaticHtml={resolveHtml}
+          csvFilename={csvFilename}
+          csvHeaders={csvHeaders}
+          csvRows={csvRows}
+          onPrinted={onPrinted}
+        />
+      ) : null}
     </div>
   );
 }

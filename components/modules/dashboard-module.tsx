@@ -1,6 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { motion } from "framer-motion";
+import { buildTableReportHtml } from "@/components/print/document-templates";
+import { PrintToolbar } from "@/components/print/print-toolbar";
 import {
   AlertTriangle,
   BadgeDollarSign,
@@ -14,7 +17,7 @@ import {
 import { ar } from "@/lib/i18n/ar";
 import { useShowroomMetrics } from "@/hooks/use-showroom-metrics";
 import { useShowroomStore } from "@/lib/offline-store";
-import { formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 
 export function DashboardModule() {
   const metrics = useShowroomMetrics();
@@ -22,6 +25,34 @@ export function DashboardModule() {
   const pendingOperations = useShowroomStore((s) => s.pendingOperations);
   const lastSyncAt = useShowroomStore((s) => s.lastSyncAt);
   const auditEvents = useShowroomStore((s) => s.auditEvents);
+
+  const dashboardPrintHtml = useMemo(
+    () =>
+      buildTableReportHtml(
+        "تقرير لوحة التحكم التنفيذية",
+        ["المؤشر", "القيمة"],
+        [
+          ["السيارات المتوفرة", String(metrics.available)],
+          ["السيارات المباعة", String(metrics.sold)],
+          ["السيارات المحجوزة", String(metrics.reserved)],
+          ["العملاء", String(metrics.customerCount)],
+          ["العملاء المحتملون", String(metrics.leadCount)],
+          ["إجمالي المبيعات", formatCurrency(metrics.totalSales)],
+          ["إجمالي المصروفات", formatCurrency(metrics.totalExpenses)],
+          ["صافي الربح", formatCurrency(metrics.actualProfit)],
+          ["قيمة المخزون", formatCurrency(metrics.inventoryValue)],
+          ["أقساط اليوم", String(metrics.todaysInstallments)],
+          ["أقساط متأخرة", String(metrics.overdueInstallments)],
+          ["حجوزات اليوم", String(metrics.todaysReservations)]
+        ],
+        [
+          { label: "حالة المزامنة", value: syncStatus },
+          { label: "عمليات معلّقة", value: String(pendingOperations.length) }
+        ],
+        { periodLabel: "لقطة فورية عند الطباعة" }
+      ),
+    [metrics, syncStatus, pendingOperations.length]
+  );
 
   const cards: Array<[string, string | number, React.ReactNode]> = [
     ["السيارات المتوفرة", metrics.available, <Car key="a" className="h-5 w-5" />],
@@ -46,7 +77,10 @@ export function DashboardModule() {
         <p className="mt-2 max-w-2xl text-sm text-white/55">
           ملخص تنفيذي فقط — اختر قسماً من القائمة الجانبية لإدارة السيارات والعملاء والمبيعات والتقارير.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3 text-sm">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <PrintToolbar title="لوحة التحكم" printHtmlBody={dashboardPrintHtml} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm">
           <span className="rounded-xl bg-white/5 px-3 py-1">
             {ar.syncStatus}: {syncStatus === "online" ? ar.online : syncStatus === "syncing" ? ar.syncing : ar.offline}
           </span>

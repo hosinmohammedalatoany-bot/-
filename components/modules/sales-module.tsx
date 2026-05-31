@@ -171,9 +171,9 @@ export function SalesModule() {
                           buildHtml: (items) => printInvoice(row.docNo, row, items)
                         }}
                       />
-                      <PrintToolbar
+                      <PrintDocumentActions
                         title={`عقد ${row.docNo}`}
-                        printHtmlBody={printContract(row.docNo, row)}
+                        getHtml={() => printContract(row.docNo, row)}
                         onPrinted={() => log(`طباعة عقد ${row.docNo}`)}
                       />
                     </td>

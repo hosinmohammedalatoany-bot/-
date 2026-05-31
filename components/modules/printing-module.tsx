@@ -135,9 +135,9 @@ export function PrintingModule() {
                   </div>
                 ) : (
                   <div className="mt-3">
-                    <PrintToolbar
+                    <PrintDocumentActions
                       title={`معاينة ${t.label}`}
-                      printHtmlBody={t.getHtml()}
+                      getHtml={t.getHtml}
                       onPrinted={() => recordPrint(t.label, SAMPLE_DOC_NO)}
                     />
                   </div>

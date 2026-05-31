@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
-import { buildTableReportHtml } from "@/components/print/document-templates";
+import { buildProfitLossPrintHtml, buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { ModulePage } from "@/components/modules/module-page";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
@@ -40,15 +40,13 @@ export function AccountingModule() {
     expenses.map((e) => [e.category, formatCurrency(e.amount), e.branch, e.description, formatDateTime(e.createdAt)])
   );
 
-  const plHtml = buildTableReportHtml(
-    "الأرباح والخسائر",
-    ["البند", "المبلغ"],
-    [
-      ["الإيرادات", formatCurrency(revenues)],
-      ["المصروفات", metrics.formatted.totalExpenses],
-      ["صافي الربح", metrics.formatted.actualProfit]
-    ]
-  );
+  const plHtml = buildProfitLossPrintHtml({
+    revenues,
+    expenses: metrics.totalExpenses,
+    netProfit: metrics.actualProfit,
+    periodLabel: "حتى تاريخ الطباعة",
+    expenseRows: expenses.map((e) => ({ category: e.category, amount: e.amount }))
+  });
 
   return (
     <ModulePage moduleKey="accounting">

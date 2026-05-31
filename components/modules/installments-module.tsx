@@ -169,14 +169,16 @@ export function InstallmentsModule() {
                       <StatusBadge status={i.status} />
                     </td>
                     <td>
-                      <PrintToolbar
+                      <PrintDocumentActions
                         title={`إيصال ${i.id}`}
-                        printHtmlBody={buildPaymentReceiptPrintHtml({
-                          receiptNumber: `RCP-${i.id}`,
-                          amount: i.paidAmount > 0 ? i.paidAmount : i.amount,
-                          reference: i.id,
-                          note: "إيصال دفع قسط"
-                        })}
+                        getHtml={() =>
+                          buildPaymentReceiptPrintHtml({
+                            receiptNumber: `RCP-${i.id}`,
+                            amount: i.paidAmount > 0 ? i.paidAmount : i.amount,
+                            reference: i.id,
+                            note: "إيصال دفع قسط"
+                          })
+                        }
                       />
                     </td>
                   </tr>
