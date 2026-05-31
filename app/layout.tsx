@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "براء رائد | نظام إدارة معرض السيارات",
+  title: "باور | نظام إدارة معارض السيارات",
   description:
-    "نظام عربي مملوك بالكامل لإدارة معرض السيارات والمبيعات والأقساط والمخزون والمحاسبة والطباعة والعمل بدون إنترنت.",
-  applicationName: "براء رائد",
+    "باور نظام عربي مملوك بالكامل لإدارة معارض السيارات والمبيعات والتقسيط والمخزون والمحاسبة والعمل بدون إنترنت.",
+  applicationName: "باور",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "براء رائد"
+    title: "باور"
   },
   icons: {
     icon: "/brand/app-icon.svg",

@@ -1,6 +1,6 @@
-# Baraa Raed Car Showroom Management System
+# باور لإدارة معارض السيارات
 
-Luxury, owner-controlled, offline-first car showroom ERP foundation for vehicle inventory, sales, installments, accounting, printing, reports, branches, employees, permissions, backup, and synchronization.
+نظام عربي فاخر ومملوك بالكامل لإدارة معارض السيارات، يدعم العمل بدون إنترنت، ويغطي السيارات والعملاء والمبيعات والتقسيط والمشتريات والمخزون والمحاسبة والموظفين والفروع والتقارير والإعدادات.
 
 This project is not SaaS and contains no subscription or pricing-plan logic.
 
@@ -17,6 +17,7 @@ This project is not SaaS and contains no subscription or pricing-plan logic.
 - Framer Motion
 - IndexedDB offline persistence
 - PostgreSQL schema in `docs/DATABASE_SCHEMA.sql`
+- Arabic full project prompt in `docs/POWER_FULL_PROJECT_PROMPT_AR.md`
 
 ## Run
 

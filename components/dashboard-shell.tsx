@@ -86,6 +86,21 @@ const moduleIcons: Record<ModuleKey, React.ReactNode> = {
   settings: <ShieldCheck className="h-4 w-4" />
 };
 
+const mainMenuKeys: ModuleKey[] = [
+  "dashboard",
+  "cars",
+  "customers",
+  "sales",
+  "installments",
+  "purchases",
+  "inventory",
+  "accounting",
+  "employees",
+  "branches",
+  "reports",
+  "settings"
+];
+
 const arabicModuleCopy: Record<ModuleKey, { title: string; description: string; capabilities: string[] }> = {
   dashboard: {
     title: "لوحة التحكم",
@@ -560,25 +575,32 @@ export function DashboardShell() {
             </SecondaryButton>
           </div>
           <nav className="mt-5 max-h-[68vh] space-y-1 overflow-auto pr-1">
-            {modules.map((module) => (
+            {mainMenuKeys.map((moduleKey) => {
+              const menuItem = modules.find((item) => item.key === moduleKey);
+              if (!menuItem) {
+                return null;
+              }
+
+              return (
               <button
                 type="button"
-                key={module.key}
-                onClick={() => store.setSelectedModule(module.key)}
+                key={menuItem.key}
+                onClick={() => store.setSelectedModule(menuItem.key)}
                 className={cn(
                   "flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-left text-sm transition",
-                  store.selectedModule === module.key
+                  store.selectedModule === menuItem.key
                     ? "border border-[#d6a84f]/45 bg-[#d6a84f]/15 text-[#f3c96b]"
                     : "text-white/68 hover:bg-white/8 hover:text-white"
                 )}
               >
                 <span className="flex items-center gap-2">
-                  {moduleIcons[module.key]}
-                  {arabicModuleCopy[module.key].title}
+                  {moduleIcons[menuItem.key]}
+                  {arabicModuleCopy[menuItem.key].title}
                 </span>
                 <span className="text-xs text-white/35">براء رائد</span>
               </button>
-            ))}
+              );
+            })}
           </nav>
         </aside>
 
@@ -586,13 +608,14 @@ export function DashboardShell() {
           <header className="luxury-panel overflow-hidden rounded-[2rem] p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.4em] text-[#d6a84f]">نظام مملوك بالكامل للمعرض</p>
+                <p className="text-sm uppercase tracking-[0.4em] text-[#d6a84f]">باور | نظام مملوك بالكامل للمعرض</p>
                 <h1 className="mt-3 text-4xl font-black tracking-tight text-white md:text-6xl">
-                  براء رائد <span className="gold-text">إدارة معرض السيارات</span>
+                  باور <span className="gold-text">لإدارة معارض السيارات</span>
                 </h1>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-white/65">
-                  نظام عربي احترافي لإدارة السيارات والمبيعات والأقساط والمخزون والمحاسبة والموافقات والتقارير
-                  والطباعة وواتساب، مع عمل كامل بدون إنترنت ومزامنة تلقائية عند عودة الاتصال.
+                  نظام عربي احترافي لإدارة السيارات والعملاء والمبيعات والتقسيط والمشتريات والمخزون والمحاسبة
+                  والموظفين والفروع والتقارير، يعمل على الويب والموبايل وويندوز بدون اشتراكات ويدعم العمل بدون
+                  إنترنت مع المزامنة التلقائية.
                 </p>
               </div>
               <div className="grid min-w-[280px] gap-3 rounded-3xl border border-white/10 bg-black/30 p-4">
