@@ -4,17 +4,23 @@
 
 | البند | القيمة |
 |--------|--------|
-| **الرابط العام** | https://desperate-lite-stomach-calculations.trycloudflare.com |
-| تسجيل الدخول | https://desperate-lite-stomach-calculations.trycloudflare.com/login |
-| الإعداد الأول | https://desperate-lite-stomach-calculations.trycloudflare.com/setup |
-| لوحة التحكم | https://desperate-lite-stomach-calculations.trycloudflare.com/dashboard/dashboard |
+| **الرابط العام** | https://olive-alberta-biographies-citizenship.trycloudflare.com |
+| تسجيل الدخول | https://olive-alberta-biographies-citizenship.trycloudflare.com/login |
+| إنشاء حساب | https://olive-alberta-biographies-citizenship.trycloudflare.com/register |
+| الإعداد الأول | https://olive-alberta-biographies-citizenship.trycloudflare.com/setup |
+| لوحة التحكم | https://olive-alberta-biographies-citizenship.trycloudflare.com/dashboard/dashboard |
 
 ## إعادة تشغيل الرابط
 
 ```bash
 npm run build
-npm run tunnel
+fuser -k 3000/tcp 2>/dev/null || true
+npm run start -- -H 0.0.0.0 -p 3000
+# في طرفية ثانية:
+cloudflared tunnel --url http://127.0.0.1:3000
 ```
+
+أو: `npm run tunnel` (يبني ويشغّل ويحدّث `.env.local`).
 
 ## للإنتاج الدائم (VPS)
 
