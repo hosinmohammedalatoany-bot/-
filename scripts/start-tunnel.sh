@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PORT="${PORT:-3000}"
+PORT="${PORT:-4173}"
 HOST="127.0.0.1"
 
 if ! command -v cloudflared >/dev/null 2>&1; then
@@ -68,10 +68,13 @@ for i in $(seq 1 45); do
     echo "=============================================="
     echo ""
     cat > "${ROOT}/.env.local" <<EOF
+# Cloudflare quick tunnel — origin is also detected from each request (no restart required for links)
+NEXT_PUBLIC_PUBLIC_BASE_URL=$URL
 NEXT_PUBLIC_APP_URL=$URL
 VERIFY_EMAIL_IN_RESPONSE=true
 EOF
-    echo "تم حفظ .env.local — أعد تشغيل npm run start لتحميل المتغيرات."
+    echo "تم حفظ .env.local (PUBLIC_BASE_URL + APP_URL)."
+    echo "الروابط والجلسات تستخدم origin الحالي تلقائياً — إعادة التشغيل اختيارية."
     echo ""
     echo "افتح من iPhone / Android / Windows:"
     echo "  $URL/login"

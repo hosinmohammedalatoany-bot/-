@@ -11,6 +11,7 @@ const publicPaths = [
   "/verify",
   "/api/auth",
   "/api/health",
+  "/api/runtime-config",
   "/api/sync",
   "/api/codes",
   "/offline",

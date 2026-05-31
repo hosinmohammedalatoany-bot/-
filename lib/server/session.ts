@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { isCloudflareTunnelHost, readEnvPublicBaseUrl, resolveOriginFromRequest } from "@/lib/runtime-config";
 import { readDb, type DbUser } from "@/lib/server/db";
 
 const SESSION_COOKIE = "br_session";
@@ -14,10 +15,13 @@ export function sessionMaxAgeSeconds(rememberMe = false) {
 
 export function sessionCookieHeader(token: string, request?: Request, rememberMe = false) {
   const forwardedProto = request?.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const requestHost = request?.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ?? request?.headers.get("host") ?? "";
+  const envUrl = readEnvPublicBaseUrl();
   const isSecure =
     forwardedProto === "https" ||
-    (typeof process.env.NEXT_PUBLIC_APP_URL === "string" &&
-      process.env.NEXT_PUBLIC_APP_URL.startsWith("https://"));
+    isCloudflareTunnelHost(requestHost) ||
+    (request ? resolveOriginFromRequest(request)?.startsWith("https://") : false) ||
+    (typeof envUrl === "string" && envUrl.startsWith("https://"));
   const secure = isSecure ? "; Secure" : "";
   return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds(rememberMe)}${secure}`;
 }

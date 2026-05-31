@@ -1,4 +1,5 @@
-const CACHE = "baraa-raed-shell-v1";
+const CACHE = "baraa-raed-shell-v2";
+/** Root-relative paths — resolve to the current origin (trycloudflare.com or production). */
 const SHELL = ["/", "/login", "/offline", "/brand/app-icon.svg", "/brand/logo-horizontal.svg"];
 
 self.addEventListener("install", (event) => {
