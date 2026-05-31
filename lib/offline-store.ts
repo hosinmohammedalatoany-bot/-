@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import {
   type AuditEvent,
+  type PrintedDocument,
   type Customer,
   type Expense,
   type Installment,
@@ -47,6 +48,7 @@ interface PersistedState {
   invoices: Invoice[];
   pendingOperations: PendingOperation[];
   auditEvents: AuditEvent[];
+  printedDocuments: PrintedDocument[];
   lastSyncAt?: string;
 }
 
@@ -68,6 +70,7 @@ interface ShowroomState extends PersistedState {
   attachLocalFile: (entityLabel: string) => void;
   setNetworkStatus: (online: boolean) => void;
   synchronize: () => Promise<void>;
+  recordPrint: (documentType: string, documentNumber: string, branch?: string) => void;
 }
 
 const baseState: PersistedState = {
@@ -80,6 +83,7 @@ const baseState: PersistedState = {
   invoices: seedInvoices,
   pendingOperations: [],
   auditEvents: seedAuditEvents,
+  printedDocuments: [],
   lastSyncAt: undefined
 };
 
@@ -142,6 +146,7 @@ function snapshot(state: ShowroomState): PersistedState {
     invoices: state.invoices,
     pendingOperations: state.pendingOperations,
     auditEvents: state.auditEvents,
+    printedDocuments: state.printedDocuments ?? [],
     lastSyncAt: state.lastSyncAt
   };
 }
@@ -177,7 +182,12 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   setSelectedModule: (module) => set({ selectedModule: module }),
   hydrate: async () => {
     const persisted = await readPersistedState();
-    set({ ...(persisted ?? baseState), isHydrated: true, syncStatus: navigator.onLine ? "online" : "offline" });
+    set({
+      ...(persisted ?? baseState),
+      printedDocuments: persisted?.printedDocuments ?? [],
+      isHydrated: true,
+      syncStatus: navigator.onLine ? "online" : "offline"
+    });
   },
   addVehicle: (input) => {
     const duplicate = get().vehicles.some((vehicle) => vehicle.vin.toUpperCase() === input.vin.toUpperCase());
@@ -343,6 +353,34 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       syncStatus: navigator.onLine ? "online" : "offline",
       lastSyncAt: new Date().toISOString(),
       auditEvents: [audit("Offline queue synchronized", `${state.pendingOperations.length} operations`), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+  },
+  recordPrint: (documentType, documentNumber, branch = "الفرع الرئيسي") => {
+    const existing = get().printedDocuments.find((p) => p.documentNumber === documentNumber && p.documentType === documentType);
+    const entry: PrintedDocument = existing
+      ? {
+          ...existing,
+          printCount: existing.printCount + 1,
+          printedAt: new Date().toISOString(),
+          status: "success"
+        }
+      : {
+          id: createId("prt"),
+          documentType,
+          documentNumber,
+          branch,
+          printCount: 1,
+          status: "success",
+          printedAt: new Date().toISOString(),
+          actor: "Current User"
+        };
+    set((state) => ({
+      printedDocuments: [
+        entry,
+        ...state.printedDocuments.filter((p) => p.id !== existing?.id)
+      ],
+      auditEvents: [audit("طباعة مستند", `${documentType} ${documentNumber}`), ...state.auditEvents]
     }));
     void persistState(snapshot(get()));
   }
