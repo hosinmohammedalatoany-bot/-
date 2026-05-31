@@ -4,15 +4,20 @@
 
 | البند | القيمة |
 |--------|--------|
-| **الرابط العام (نشط الآن)** | https://tumor-harvey-legislative-abraham.trycloudflare.com |
-| تسجيل الدخول | https://tumor-harvey-legislative-abraham.trycloudflare.com/login |
-| **إنشاء حساب** (أول حساب = مدير النظام) | https://tumor-harvey-legislative-abraham.trycloudflare.com/register |
-| إعداد بديل | https://tumor-harvey-legislative-abraham.trycloudflare.com/setup |
-| لوحة التحكم | https://tumor-harvey-legislative-abraham.trycloudflare.com/dashboard/dashboard |
+| **الرابط العام (نشط الآن)** | https://automatic-newer-comparisons-fed.trycloudflare.com |
+| تسجيل الدخول | https://automatic-newer-comparisons-fed.trycloudflare.com/login |
+| **إنشاء حساب** (أول حساب = مدير النظام) | https://automatic-newer-comparisons-fed.trycloudflare.com/register |
+| إعداد بديل | https://automatic-newer-comparisons-fed.trycloudflare.com/setup |
+| لوحة التحكم | https://automatic-newer-comparisons-fed.trycloudflare.com/dashboard/dashboard |
 
-**رابط سابق (لم يعد يعمل):** `https://feeds-collectables-part-more.trycloudflare.com`
+**روابط قديمة (لا تستخدمها):**
 
-**آخر تحديث:** 2026-05-31 — أُعيد تشغيل التطبيق + نفق جديد بعد `ERR_FAILED`.
+- `https://feeds-collectables-part-more.trycloudflare.com` → `ERR_FAILED`
+- `https://tumor-harvey-legislative-abraham.trycloudflare.com` → خطأ تطبيق (ملفات JS قديمة)
+
+**إذا ظهر «Application error: a client-side exception»:** أعد البناء ثم `npm run tunnel` — كان السبب تشغيل `next start` بينما المشروع `standalone` (ملفات JS لا تطابق الصفحة).
+
+**آخر تحديث:** 2026-05-31 — إصلاح تشغيل الإنتاج + نفق جديد.
 
 ## إعادة تشغيل الرابط
 

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "next dev -H 0.0.0.0",
     "build": "next build",
-    "start": "next start -H 0.0.0.0",
+    "start": "node scripts/start-production.mjs",
     "start:preview": "next start -H 0.0.0.0 -p 4173",
     "start:prod": "npm run build && next start -H 0.0.0.0 -p ${PORT:-3000}",
     "tunnel": "bash scripts/start-tunnel.sh",

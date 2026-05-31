@@ -15,6 +15,8 @@ free_port() {
     lsof -ti :"${p}" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
   fi
   pkill -f "next dev" 2>/dev/null || true
+  pkill -f "next start" 2>/dev/null || true
+  pkill -f "node server.js" 2>/dev/null || true
 }
 
 if ! command -v cloudflared >/dev/null 2>&1; then
@@ -32,8 +34,8 @@ if ! command -v cloudflared >/dev/null 2>&1; then
   export PATH="${ROOT}/.bin:${PATH}"
 fi
 
-if pgrep -f "next dev" >/dev/null 2>&1; then
-  echo "WARNING: next dev is running — stopping it (use production build behind tunnel)."
+if pgrep -f "next dev" >/dev/null 2>&1 || pgrep -f "next start" >/dev/null 2>&1; then
+  echo "WARNING: Stopping dev/next-start — using production standalone behind tunnel."
   free_port "${PORT}"
   sleep 2
 fi
@@ -47,20 +49,9 @@ if ! curl -sf "http://${HOST}:${PORT}/api/health" >/dev/null 2>&1; then
   free_port "${PORT}"
   sleep 1
   SESSION_NAME="baraa-prod-server"
-  if tmux -f /exec-daemon/tmux.portal.conf has-session -t "=${SESSION_NAME}" 2>/dev/null; then
-    echo "Reusing tmux session: ${SESSION_NAME}"
-  else
-    tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "${SESSION_NAME}" -c "$ROOT" -- "${SHELL:-bash}" -l
-  fi
-  # standalone output: copy assets then run server.js (avoids broken `next start` warning)
-  if [ -f ".next/standalone/server.js" ]; then
-    mkdir -p .next/standalone/.next
-    cp -r public .next/standalone/ 2>/dev/null || true
-    cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
-    START_CMD="cd '$ROOT/.next/standalone' && set -a && [ -f '$ROOT/.env.local' ] && . '$ROOT/.env.local'; set +a && HOSTNAME=0.0.0.0 PORT=${PORT} node server.js"
-  else
-    START_CMD="cd '$ROOT' && set -a && [ -f .env.local ] && . ./.env.local; set +a && HOSTNAME=0.0.0.0 PORT=${PORT} npm run start"
-  fi
+  tmux -f /exec-daemon/tmux.portal.conf kill-session -t "=${SESSION_NAME}" 2>/dev/null || true
+  tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "${SESSION_NAME}" -c "$ROOT" -- "${SHELL:-bash}" -l
+  START_CMD="cd '$ROOT' && set -a && [ -f .env.local ] && . ./.env.local; set +a && HOSTNAME=0.0.0.0 PORT=${PORT} npm run start"
   tmux -f /exec-daemon/tmux.portal.conf send-keys -t "${SESSION_NAME}:0.0" "$START_CMD" C-m
   for i in $(seq 1 30); do
     if curl -sf "http://${HOST}:${PORT}/api/health" >/dev/null 2>&1; then
