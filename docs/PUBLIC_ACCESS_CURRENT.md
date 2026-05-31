@@ -4,21 +4,22 @@
 
 | البند | القيمة |
 |--------|--------|
-| **الرابط العام (نشط الآن)** | https://restore-heater-church-reservoir.trycloudflare.com |
-| تسجيل الدخول | https://restore-heater-church-reservoir.trycloudflare.com/login |
-| **إنشاء حساب** (أول حساب = مدير النظام) | https://restore-heater-church-reservoir.trycloudflare.com/register |
-| إعداد بديل | https://restore-heater-church-reservoir.trycloudflare.com/setup |
-| لوحة التحكم | https://restore-heater-church-reservoir.trycloudflare.com/dashboard/dashboard |
+| **الرابط العام (نشط الآن)** | https://nuts-pace-pierre-washer.trycloudflare.com |
+| تسجيل الدخول | https://nuts-pace-pierre-washer.trycloudflare.com/login |
+| **إنشاء حساب** (أول حساب = مدير النظام) | https://nuts-pace-pierre-washer.trycloudflare.com/register |
+| إعداد بديل | https://nuts-pace-pierre-washer.trycloudflare.com/setup |
+| لوحة التحكم | https://nuts-pace-pierre-washer.trycloudflare.com/dashboard/dashboard |
 
 **روابط قديمة (لا تستخدمها):**
 
+- `https://restore-heater-church-reservoir.trycloudflare.com` → انتهى بعد إعادة البناء
 - `https://automatic-newer-comparisons-fed.trycloudflare.com` → انتهى / DNS لا يعمل
 - `https://feeds-collectables-part-more.trycloudflare.com` → `ERR_FAILED`
 - `https://tumor-harvey-legislative-abraham.trycloudflare.com` → خطأ تطبيق (ملفات JS قديمة)
 
 **إذا ظهر «Application error: a client-side exception»:** أعد البناء ثم `npm run tunnel` — كان السبب تشغيل `next start` بينما المشروع `standalone` (ملفات JS لا تطابق الصفحة).
 
-**آخر تحديث:** 2026-05-31 — نفق جديد بعد توقف الرابط السابق.
+**آخر تحديث:** 2026-05-31 — تنظيف ملفات مؤقتة + إعادة بناء كاملة + نفق جديد.
 
 ## إعادة تشغيل الرابط
 

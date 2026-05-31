@@ -2,6 +2,7 @@
 node_modules/
 tsconfig.tsbuildinfo
 *.log
+.tunnel*.log
 .env
 .env.*
 !.env.example
