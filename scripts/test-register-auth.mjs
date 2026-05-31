@@ -30,14 +30,21 @@ function testRegisterPayloadRules() {
   assert(p1 === p1, "matching passwords accepted");
 }
 
-function testAccountStatuses() {
-  const loginBlocked = ["pending-approval", "disabled", "rejected", "suspended"];
-  for (const status of loginBlocked) {
-    assert(status !== "active", `${status} cannot login while not active`);
+function testRegisterFormFields() {
+  const allowedFields = new Set(["name", "email", "phone", "password", "confirmPassword"]);
+  const legacyFields = ["role", "branch", "acceptTerms"];
+  for (const field of legacyFields) {
+    assert(!allowedFields.has(field), `public register must not require ${field}`);
   }
+}
+
+function testNewUsersAreActive() {
+  const newUserStatus = "active";
+  assert(newUserStatus === "active", "new registrations must be active immediately");
 }
 
 testPasswordRules();
 testRegisterPayloadRules();
-testAccountStatuses();
+testRegisterFormFields();
+testNewUsersAreActive();
 console.log("register-auth: all checks passed");

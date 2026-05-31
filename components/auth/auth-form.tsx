@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { ar } from "@/lib/i18n/ar";
 import { cn } from "@/lib/utils";
-import type { RegisterableRole } from "@/lib/server/auth-constants";
-
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-[#d6a84f]/70";
 
@@ -219,37 +217,30 @@ export function ForgotPasswordForm() {
   );
 }
 
-type RegisterConfig = {
-  branches: string[];
-  roles: { value: RegisterableRole; label: string }[];
-};
-
 export function RegisterForm() {
   const router = useRouter();
-  const [config, setConfig] = useState<RegisterConfig | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole] = useState<RegisterableRole>("sales");
-  const [branch, setBranch] = useState("");
-  const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "ok" | "err"; text: string; verifyUrl?: string } | null>(null);
+  const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/register")
       .then((r) => r.json())
-      .then((data: RegisterConfig & { setupCompleted?: boolean; open?: boolean; message?: string }) => {
-        if (!data.branches) {
-          if (data.setupCompleted === false) router.replace("/setup");
+      .then((data: { setupCompleted?: boolean; open?: boolean; message?: string }) => {
+        if (data.setupCompleted === false) {
+          router.replace("/setup");
           return;
         }
-        setConfig({ branches: data.branches, roles: data.roles });
-        setBranch(data.branches[0] ?? "");
-        if (data.roles[0]) setRole(data.roles[0].value);
+        setRegistrationOpen(data.open !== false);
+        if (data.open === false) {
+          setMessage({ type: "err", text: data.message ?? "التسجيل مغلق حالياً." });
+        }
       })
       .catch(() => setMessage({ type: "err", text: "تعذر تحميل إعدادات التسجيل." }));
   }, [router]);
@@ -267,26 +258,24 @@ export function RegisterForm() {
           email,
           phone,
           password,
-          confirmPassword,
-          role,
-          branch,
-          acceptTerms
+          confirmPassword
         })
       });
       const data = (await response.json()) as {
         error?: string;
         message?: string;
-        verifyUrl?: string;
+        user?: unknown;
       };
       if (!response.ok) {
         setMessage({ type: "err", text: data.error ?? ar.error });
         return;
       }
-      setMessage({
-        type: "ok",
-        text: data.message ?? `${ar.success}. ${ar.pendingApproval}.`,
-        verifyUrl: data.verifyUrl
-      });
+      if (data.user) {
+        localStorage.setItem("br_user", JSON.stringify(data.user));
+      }
+      setMessage({ type: "ok", text: data.message ?? ar.success });
+      router.push("/dashboard/dashboard");
+      router.refresh();
     } catch {
       setMessage({ type: "err", text: "تعذر الاتصال بالخادم." });
     } finally {
@@ -301,7 +290,7 @@ export function RegisterForm() {
         <h1 className="mt-6 text-center text-2xl font-black text-white">{ar.appFullName}</h1>
         <p className="mt-2 text-center text-sm text-white/55">{ar.registerTitle}</p>
         <p className="mt-1 text-center text-xs text-white/45">{ar.registerHint}</p>
-        <form className="mt-6 grid gap-3" onSubmit={onSubmit}>
+        <form className="mt-6 grid gap-3" onSubmit={onSubmit} noValidate={registrationOpen === false}>
           <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
           <input className={inputClass} type="email" placeholder={ar.email} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <input className={inputClass} type="tel" placeholder={ar.phone} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required />
@@ -332,42 +321,6 @@ export function RegisterForm() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
-          <label className="grid gap-1.5 text-sm text-white/70">
-            <span>{ar.accountType}</span>
-            <select
-              className={inputClass}
-              value={role}
-              onChange={(e) => setRole(e.target.value as RegisterableRole)}
-              required
-              disabled={!config}
-            >
-              {config?.roles.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm text-white/70">
-            <span>{ar.branch}</span>
-            <select
-              className={inputClass}
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              required
-              disabled={!config}
-            >
-              {config?.branches.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-start gap-2 text-sm text-white/60">
-            <input type="checkbox" className="mt-1" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} required />
-            <span>{ar.acceptTerms}</span>
-          </label>
           {message && (
             <div
               className={cn(
@@ -376,16 +329,11 @@ export function RegisterForm() {
               )}
             >
               <p>{message.text}</p>
-              {message.verifyUrl && (
-                <p className="mt-2 break-all text-xs opacity-80">
-                  رابط تأكيد البريد (تطوير): <a href={message.verifyUrl}>{message.verifyUrl}</a>
-                </p>
-              )}
             </div>
           )}
           <button
             type="submit"
-            disabled={loading || !config}
+            disabled={loading || registrationOpen === false || registrationOpen === null}
             className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] py-3 font-bold text-black disabled:opacity-50"
           >
             {loading ? ar.loading : ar.register}

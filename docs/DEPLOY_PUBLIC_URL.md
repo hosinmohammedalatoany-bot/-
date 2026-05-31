@@ -57,7 +57,7 @@ sudo certbot --nginx -d app.your-domain.com
 
 - `/setup` — أول مدير عام (مرة واحدة)
 - `/login` — تسجيل الدخول
-- `/register` — حساب جديد (بانتظار الموافقة)
+- `/register` — حساب جديد (تفعيل مباشر وتسجيل دخول تلقائي)
 - `/dashboard/dashboard` — لوحة التحكم
 - `/dashboard/cars` — السيارات (مثال قسم)
 

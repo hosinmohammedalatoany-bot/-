@@ -56,7 +56,7 @@ export const ar = {
   confirmPassword: "تأكيد كلمة المرور",
   register: "إنشاء حساب",
   registerTitle: "إنشاء حساب جديد",
-  registerHint: "أكمل البيانات — سيتم مراجعة طلبك من المدير العام قبل التفعيل.",
+  registerHint: "أكمل البيانات لإنشاء حسابك والدخول مباشرة إلى النظام.",
   fullName: "الاسم الكامل",
   phone: "رقم الهاتف",
   accountType: "نوع الحساب",

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { registerableRoles } from "@/lib/server/auth-constants";
 
 const strongPassword = z
   .string()
@@ -18,18 +17,11 @@ export const registerSchema = z
       .min(8, "رقم الهاتف مطلوب.")
       .regex(/^[\d+\s()-]{8,20}$/, "رقم الهاتف غير صالح."),
     password: strongPassword,
-    confirmPassword: z.string(),
-    role: z.enum(registerableRoles as [typeof registerableRoles[number], ...typeof registerableRoles]),
-    branch: z.string().trim(),
-    acceptTerms: z.literal(true, { message: "يجب الموافقة على الشروط والأحكام." })
+    confirmPassword: z.string()
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "كلمة المرور وتأكيدها غير متطابقين.",
     path: ["confirmPassword"]
-  })
-  .refine((data) => data.branch.length >= 2, {
-    message: "يجب اختيار الفرع.",
-    path: ["branch"]
   });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

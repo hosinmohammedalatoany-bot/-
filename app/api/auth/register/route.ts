@@ -5,12 +5,12 @@ import {
   hashPassword,
   readDb,
   writeDb,
-  type DbUser
+  type DbUser,
+  rolePermissions
 } from "@/lib/server/db";
-import { registerableRoles, registerRoleLabelsAr } from "@/lib/server/auth-constants";
+import { defaultBranches } from "@/lib/server/auth-constants";
 import { registerSchema } from "@/lib/validation/register-schema";
-import { rolePermissions } from "@/lib/server/db";
-import { getPublicAppOrigin } from "@/lib/server/app-url";
+import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 export async function GET() {
   const db = await readDb();
@@ -22,12 +22,7 @@ export async function GET() {
   }
   return NextResponse.json({
     open: db.registrationOpen,
-    setupCompleted: true,
-    branches: db.branches,
-    roles: registerableRoles.map((role) => ({
-      value: role,
-      label: registerRoleLabelsAr[role]
-    }))
+    setupCompleted: true
   });
 }
 
@@ -62,8 +57,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "البريد الإلكتروني مستخدم مسبقاً." }, { status: 409 });
   }
 
+  const branches = db.branches?.length ? db.branches : [...defaultBranches];
+  const defaultBranch = branches[0] ?? "الفرع الرئيسي";
+  const hasSuperAdmin = db.users.some((u) => u.role === "super-admin");
+  const role = hasSuperAdmin ? "sales" : "super-admin";
+
   const userId = createToken().slice(0, 12);
-  const verifyToken = createToken();
   const now = new Date().toISOString();
 
   const user: DbUser = {
@@ -72,56 +71,52 @@ export async function POST(request: Request) {
     passwordHash: hashPassword(data.password),
     name: data.name.trim(),
     phone: data.phone.trim(),
-    role: data.role,
-    branch: data.branch.trim(),
-    status: "pending-approval",
-    emailVerified: false,
-    permissions: rolePermissions[data.role],
+    role,
+    branch: defaultBranch,
+    status: "active",
+    emailVerified: true,
+    permissions: rolePermissions[role],
     failedAttempts: 0,
     createdAt: now,
-    termsAcceptedAt: now
+    approvedAt: now
   };
 
   db.users.push(user);
-  db.emailVerificationTokens.push({
-    token: verifyToken,
-    userId,
-    email,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    used: false
-  });
 
-  const admins = db.users.filter((u) => u.role === "super-admin" && u.status === "active");
-  for (const admin of admins) {
-    db.adminNotifications.unshift({
-      id: createToken().slice(0, 12),
-      type: "user-registration",
-      userId,
-      message: `طلب حساب جديد: ${user.name} (${registerRoleLabelsAr[data.role]}) — ${user.branch}`,
-      createdAt: now,
-      read: false
-    });
-  }
+  const token = createToken();
+  const expiresAt = new Date(Date.now() + sessionMaxAgeSeconds() * 1000).toISOString();
+  db.sessions = db.sessions.filter((s) => s.userId !== user.id || new Date(s.expiresAt) > new Date());
+  db.sessions.push({
+    token,
+    userId: user.id,
+    createdAt: now,
+    expiresAt
+  });
 
   await appendAuditLog(db, {
     action: "user.register",
     targetId: userId,
     targetEmail: email,
-    details: `تسجيل حساب جديد بانتظار الموافقة — ${user.name} — ${registerRoleLabelsAr[data.role]}`
+    details: `تسجيل حساب جديد وتفعيل مباشر — ${user.name}`
   });
 
   await writeDb(db);
 
-  const origin = getPublicAppOrigin(request);
-  const verifyUrl = `${origin}/verify-email?token=${verifyToken}`;
-  const exposeVerify = process.env.VERIFY_EMAIL_IN_RESPONSE === "true" || process.env.NODE_ENV !== "production";
+  const sessionUser = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    branch: user.branch,
+    permissions: user.permissions.length ? user.permissions : rolePermissions[user.role]
+  };
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     ok: true,
-    message:
-      "تم إنشاء الحساب بنجاح. حسابك بانتظار موافقة المدير — لا يمكن تسجيل الدخول حتى يتم التفعيل.",
-    status: "pending-approval",
-    verifyUrl: exposeVerify ? verifyUrl : undefined,
-    emailSent: false
+    message: "تم إنشاء الحساب بنجاح. جاري تحويلك إلى لوحة التحكم.",
+    status: "active",
+    user: sessionUser
   });
+  response.headers.set("Set-Cookie", sessionCookieHeader(token));
+  return response;
 }
