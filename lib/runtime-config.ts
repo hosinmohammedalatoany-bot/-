@@ -41,11 +41,36 @@ export function isOfficialProductionHost(host: string): boolean {
   return h === "powerxerp.com" || h.endsWith(".powerxerp.com");
 }
 
-/** Shown when env URL differs from live trycloudflare.com origin (informational, not an error). */
+/** Legacy copy — not shown in UI on tunnel; use logCloudflareTunnelOriginMismatch for dev console only. */
 export const CLOUDFLARE_TUNNEL_ORIGIN_INFO_AR = [
   "PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL لا يطابق الرابط الحالي.",
   "تم اكتشاف Cloudflare Tunnel، لذلك سيتم استخدام الرابط الحالي تلقائياً."
 ] as const;
+
+/** Developer-only: tunnel env mismatch is expected; never surface to end users. */
+export function logCloudflareTunnelOriginMismatch(
+  liveOrigin: string,
+  configuredPublicUrl: string | null | undefined
+): void {
+  if (!configuredPublicUrl?.trim()) return;
+  let liveHost = "";
+  try {
+    liveHost = new URL(liveOrigin).host;
+  } catch {
+    return;
+  }
+  if (!isCloudflareTunnelHost(liveHost)) return;
+  try {
+    if (new URL(configuredPublicUrl).origin === liveOrigin) return;
+  } catch {
+    return;
+  }
+  const log = typeof console !== "undefined" ? console.info : null;
+  log?.(
+    "[PowerX ERP] Cloudflare Tunnel: PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL differs from the live URL; using window.location.origin.",
+    { liveOrigin, configuredPublicUrl: configuredPublicUrl.trim() }
+  );
+}
 
 export function isLocalHostname(host: string): boolean {
   const h = host.split(":")[0]?.toLowerCase() ?? "";
@@ -222,13 +247,12 @@ export function buildRuntimeConfig(request?: Request): RuntimeConfigPayload {
       const envHost = new URL(configuredPublic).host;
       const liveHost = new URL(requestOrigin).host;
       if (envHost !== liveHost) {
-        if (isTunnel) {
-          info.push(...CLOUDFLARE_TUNNEL_ORIGIN_INFO_AR);
-        } else {
+        if (!isTunnel) {
           warnings.push(
             "PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL لا يطابق الرابط الحالي — يُستخدم origin الحالي."
           );
         }
+        // Tunnel: resolvePublicAppOrigin already uses request origin; no UI banner.
       }
     } catch {
       /* ignore */
