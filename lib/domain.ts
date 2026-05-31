@@ -162,6 +162,17 @@ export interface AuditEvent {
   createdAt: string;
 }
 
+export interface PrintedDocument {
+  id: string;
+  documentType: string;
+  documentNumber: string;
+  branch: string;
+  printCount: number;
+  status: "success" | "failed";
+  printedAt: string;
+  actor: string;
+}
+
 export const modules: Array<{
   key: ModuleKey;
   title: string;

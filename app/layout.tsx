@@ -31,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr">
-      <body>{children}</body>
+    <html lang="ar" dir="rtl">
+      <body className="rtl-support antialiased">{children}</body>
     </html>
   );
 }
