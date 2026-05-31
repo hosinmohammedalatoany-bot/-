@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { useForm, type DefaultValues, type UseFormRegisterReturn } from "react-hook-form";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -192,11 +192,13 @@ function SecondaryButton({ children, onClick }: { children: React.ReactNode; onC
 }
 
 function useValidatedForm<T extends Record<string, unknown>>(defaults: T) {
-  return useForm<T>({ defaultValues: defaults });
+  return useForm<T>({ defaultValues: defaults as DefaultValues<T> });
 }
 
 export function DashboardShell() {
   const store = useShowroomStore();
+  const hydrateStore = useShowroomStore((state) => state.hydrate);
+  const setNetworkStatus = useShowroomStore((state) => state.setNetworkStatus);
   const [actionLog, setActionLog] = useState<string[]>(["System ready. Offline queue is active."]);
   const [rtl, setRtl] = useState(false);
   const vehicleForm = useValidatedForm<VehicleInput>(defaultVehicle);
@@ -207,7 +209,7 @@ export function DashboardShell() {
     customerId: "cus-001",
     employee: "Sara N.",
     deposit: 1000,
-    expiresAt: new Date(Date.now() + 172800000).toISOString().slice(0, 16)
+    expiresAt: "2026-06-02T10:00"
   });
   const invoiceForm = useValidatedForm<InvoiceInput>({
     vehicleId: "veh-001",
@@ -226,11 +228,11 @@ export function DashboardShell() {
   const paymentForm = useValidatedForm<InstallmentPaymentInput>({ installmentId: "ins-001", amount: 950 });
 
   useEffect(() => {
-    void store.hydrate();
-  }, []);
+    void hydrateStore();
+  }, [hydrateStore]);
 
   useEffect(() => {
-    const updateNetwork = () => store.setNetworkStatus(navigator.onLine);
+    const updateNetwork = () => setNetworkStatus(navigator.onLine);
     updateNetwork();
     window.addEventListener("online", updateNetwork);
     window.addEventListener("offline", updateNetwork);
@@ -238,7 +240,7 @@ export function DashboardShell() {
       window.removeEventListener("online", updateNetwork);
       window.removeEventListener("offline", updateNetwork);
     };
-  }, [store.setNetworkStatus]);
+  }, [setNetworkStatus]);
 
   const metrics = useMemo(() => {
     const available = store.vehicles.filter((vehicle) => vehicle.status === "available").length;
