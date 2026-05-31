@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
-import { buildInvoicePrintHtml, buildTableReportHtml } from "@/components/print/document-templates";
+import {
+  buildInvoicePrintHtml,
+  buildSaleContractPrintHtml,
+  buildTableReportHtml
+} from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { SelectCustomer, SelectVehicle } from "@/components/modules/form-selectors";
 import { ModulePage } from "@/components/modules/module-page";
@@ -54,13 +58,21 @@ export function SalesModule() {
   );
 
   function printInvoice(docNo: string, row: (typeof rows)[0]) {
-    const html = buildInvoicePrintHtml({
+    return buildInvoicePrintHtml({
       invoiceNumber: docNo,
       invoice: row.inv,
       vehicle: row.vehicle,
       customer: row.customer
     });
-    return html;
+  }
+
+  function printContract(docNo: string, row: (typeof rows)[0]) {
+    return buildSaleContractPrintHtml({
+      contractNumber: docNo.replace(/^INV/, "CNT"),
+      invoice: row.inv,
+      vehicle: row.vehicle,
+      customer: row.customer
+    });
   }
 
   return (
@@ -146,11 +158,16 @@ export function SalesModule() {
                     <td>{row.customer?.name ?? "—"}</td>
                     <td>{row.vehicle ? `${row.vehicle.manufacturer} ${row.vehicle.model}` : "—"}</td>
                     <td>{formatCurrency(row.net)}</td>
-                    <td>
+                    <td className="space-y-2">
                       <PrintToolbar
                         title={`فاتورة ${row.docNo}`}
                         printHtmlBody={printInvoice(row.docNo, row)}
-                        onPrinted={() => log(`طباعة ${row.docNo}`)}
+                        onPrinted={() => log(`طباعة فاتورة ${row.docNo}`)}
+                      />
+                      <PrintToolbar
+                        title={`عقد ${row.docNo}`}
+                        printHtmlBody={printContract(row.docNo, row)}
+                        onPrinted={() => log(`طباعة عقد ${row.docNo}`)}
                       />
                     </td>
                   </tr>

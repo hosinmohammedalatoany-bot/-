@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
-import { buildTableReportHtml } from "@/components/print/document-templates";
+import { buildPaymentReceiptPrintHtml, buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { SelectCustomer, SelectVehicle } from "@/components/modules/form-selectors";
 import { ModulePage } from "@/components/modules/module-page";
@@ -100,6 +100,7 @@ export function ReservationsModule() {
                   <th className="text-start">العميل</th>
                   <th className="text-start">العربون</th>
                   <th className="text-start">الانتهاء</th>
+                  <th className="text-start">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -113,6 +114,18 @@ export function ReservationsModule() {
                       <td>{c?.name ?? "—"}</td>
                       <td>{formatCurrency(r.deposit)}</td>
                       <td>{formatDateTime(r.expiresAt)}</td>
+                      <td>
+                        <PrintToolbar
+                          title={`حجز ${r.id}`}
+                          printHtmlBody={buildPaymentReceiptPrintHtml({
+                            receiptNumber: `RES-${r.id}`,
+                            amount: r.deposit,
+                            payerName: c?.name,
+                            reference: r.id,
+                            note: "إيصال حجز"
+                          })}
+                        />
+                      </td>
                     </tr>
                   );
                 })}

@@ -4,7 +4,11 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
-import { buildTableReportHtml } from "@/components/print/document-templates";
+import {
+  buildInstallmentContractPrintHtml,
+  buildPaymentReceiptPrintHtml,
+  buildTableReportHtml
+} from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { ModulePage } from "@/components/modules/module-page";
 import { EmptyState, Field, PrimaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
@@ -100,6 +104,16 @@ export function InstallmentsModule() {
 
       <section className="luxury-panel rounded-[2rem] p-5">
         <h3 className="font-bold text-white">جدول الأقساط</h3>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <PrintToolbar
+            title="عقد تقسيط"
+            printHtmlBody={buildInstallmentContractPrintHtml({
+              contractNumber: `INST-${installments[0]?.id ?? "NEW"}`,
+              totalAmount: installments.reduce((s, i) => s + (i.amount - i.paidAmount), 0),
+              customerName: "عميل — راجع بيانات العقد في النظام"
+            })}
+          />
+        </div>
         <PrintToolbar
           title="أقساط"
           printHtmlBody={reportHtml}
@@ -124,6 +138,7 @@ export function InstallmentsModule() {
                   <th className="text-start">المدفوع</th>
                   <th className="text-start">الاستحقاق</th>
                   <th className="text-start">الحالة</th>
+                  <th className="text-start">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -135,6 +150,17 @@ export function InstallmentsModule() {
                     <td>{formatDateTime(i.dueDate)}</td>
                     <td>
                       <StatusBadge status={i.status} />
+                    </td>
+                    <td>
+                      <PrintToolbar
+                        title={`إيصال ${i.id}`}
+                        printHtmlBody={buildPaymentReceiptPrintHtml({
+                          receiptNumber: `RCP-${i.id}`,
+                          amount: i.paidAmount > 0 ? i.paidAmount : i.amount,
+                          reference: i.id,
+                          note: "إيصال دفع قسط"
+                        })}
+                      />
                     </td>
                   </tr>
                 ))}
