@@ -7,6 +7,16 @@ cd "$ROOT"
 PORT="${PORT:-4173}"
 HOST="127.0.0.1"
 
+free_port() {
+  local p="$1"
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${p}/tcp" 2>/dev/null || true
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -ti :"${p}" 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+  fi
+  pkill -f "next dev" 2>/dev/null || true
+}
+
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "Installing cloudflared..."
   ARCH="$(uname -m)"
@@ -22,14 +32,19 @@ if ! command -v cloudflared >/dev/null 2>&1; then
   export PATH="${ROOT}/.bin:${PATH}"
 fi
 
+if pgrep -f "next dev" >/dev/null 2>&1; then
+  echo "WARNING: next dev is running — stopping it (use production build behind tunnel)."
+  free_port "${PORT}"
+  sleep 2
+fi
+
 if ! curl -sf "http://${HOST}:${PORT}/api/health" >/dev/null 2>&1; then
-  echo "Starting Next.js on port ${PORT}..."
+  echo "Starting Next.js (production) on port ${PORT}..."
   if [ ! -f ".next/BUILD_ID" ]; then
     echo "Building production bundle..."
     npm run build
   fi
-  # Stop dev server on same port if present
-  fuser -k "${PORT}/tcp" 2>/dev/null || true
+  free_port "${PORT}"
   sleep 1
   SESSION_NAME="baraa-prod-server"
   if tmux -f /exec-daemon/tmux.portal.conf has-session -t "=${SESSION_NAME}" 2>/dev/null; then
