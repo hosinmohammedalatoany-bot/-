@@ -8,6 +8,7 @@ import { useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import { moduleIcons } from "@/components/layout/module-icons";
 import { PrimaryButton, SecondaryButton, StatusBadge } from "@/components/ui/primitives";
+import { canAccessModule, type ClientUser } from "@/lib/client-permissions";
 import { modules, type ModuleKey } from "@/lib/domain";
 import { moduleTitlesAr, modulePath, ar } from "@/lib/i18n/ar";
 import { isModuleKey } from "@/lib/module-utils";
@@ -28,6 +29,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const activeModule = activeModuleFromPath(pathname);
   const [mobileNav, setMobileNav] = useState(false);
+  const [sessionUser, setSessionUser] = useState<ClientUser | null>(null);
 
   const hydrate = useShowroomStore((s) => s.hydrate);
   const syncStatus = useShowroomStore((s) => s.syncStatus);
@@ -40,6 +42,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("br_user");
+      if (raw) {
+        setSessionUser(JSON.parse(raw) as ClientUser);
+      }
+    } catch {
+      setSessionUser(null);
+    }
+    void fetch("/api/auth/me", { credentials: "include" })
+      .then(async (res) => {
+        if (res.status === 401) {
+          localStorage.removeItem("br_user");
+          router.replace("/login");
+          return;
+        }
+        if (!res.ok) return;
+        const data = (await res.json()) as { user?: ClientUser };
+        if (data.user) {
+          localStorage.setItem("br_user", JSON.stringify(data.user));
+          setSessionUser(data.user);
+        }
+      })
+      .catch(() => undefined);
+  }, [router]);
 
   useEffect(() => {
     setSelectedModule(activeModule);
@@ -63,9 +91,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.refresh();
   }
 
+  const visibleModules = modules.filter((module) => canAccessModule(sessionUser, module.key));
+
   const nav = (
     <nav className="space-y-1">
-      {modules.map((module) => {
+      {visibleModules.map((module) => {
         const href = modulePath(module.key);
         const active = activeModule === module.key;
         return (
@@ -125,6 +155,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div>
                 <p className="text-xs text-[#d6a84f]">{ar.appName}</p>
                 <h1 className="text-lg font-black text-white sm:text-xl">{moduleTitlesAr[activeModule]}</h1>
+                {sessionUser?.name && (
+                  <p className="text-xs text-white/50">
+                    {sessionUser.name}
+                    {sessionUser.role ? ` · ${sessionUser.role}` : ""}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { isCloudflareTunnelHost, readEnvPublicBaseUrl, resolveOriginFromRequest } from "@/lib/runtime-config";
 import { readDb, type DbUser } from "@/lib/server/db";
+import { signSessionCookieValue, verifySessionCookieValue } from "@/lib/server/session-signature";
 
 const SESSION_COOKIE = "br_session";
 const SESSION_HOURS = 12;
@@ -13,7 +14,7 @@ export function sessionMaxAgeSeconds(rememberMe = false) {
   return SESSION_HOURS * 60 * 60;
 }
 
-export function sessionCookieHeader(token: string, request?: Request, rememberMe = false) {
+export async function sessionCookieHeader(token: string, request?: Request, rememberMe = false) {
   const forwardedProto = request?.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const requestHost = request?.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ?? request?.headers.get("host") ?? "";
   const envUrl = readEnvPublicBaseUrl();
@@ -23,13 +24,28 @@ export function sessionCookieHeader(token: string, request?: Request, rememberMe
     (request ? resolveOriginFromRequest(request)?.startsWith("https://") : false) ||
     (typeof envUrl === "string" && envUrl.startsWith("https://"));
   const secure = isSecure ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${sessionMaxAgeSeconds(rememberMe)}${secure}`;
+  const maxAge = sessionMaxAgeSeconds(rememberMe);
+  const expiresAtMs = Date.now() + maxAge * 1000;
+  const signed = await signSessionCookieValue(token, expiresAtMs);
+  return `${SESSION_COOKIE}=${signed}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-export function parseSessionToken(cookieHeader: string | null): string | null {
+export function readSessionCookieRaw(cookieHeader: string | null): string | null {
   if (!cookieHeader) return null;
   const match = cookieHeader.match(/(?:^|;\s*)br_session=([^;]+)/);
   return match?.[1] ?? null;
+}
+
+/** @deprecated Use resolveSessionToken */
+export function parseSessionToken(cookieHeader: string | null): string | null {
+  return readSessionCookieRaw(cookieHeader);
+}
+
+export async function resolveSessionToken(cookieHeader: string | null): Promise<string | null> {
+  const raw = readSessionCookieRaw(cookieHeader);
+  if (!raw) return null;
+  const verified = await verifySessionCookieValue(raw);
+  return verified?.token ?? null;
 }
 
 export async function getUserBySessionToken(token: string | null): Promise<DbUser | null> {
@@ -43,12 +59,13 @@ export async function getUserBySessionToken(token: string | null): Promise<DbUse
 }
 
 export async function getUserFromRequest(request: Request): Promise<DbUser | null> {
-  const token = parseSessionToken(request.headers.get("cookie"));
+  const token = await resolveSessionToken(request.headers.get("cookie"));
   return getUserBySessionToken(token);
 }
 
 export async function getUserFromCookies(): Promise<DbUser | null> {
   const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value ?? null;
-  return getUserBySessionToken(token);
+  const raw = jar.get(SESSION_COOKIE)?.value ?? null;
+  const token = await verifySessionCookieValue(raw);
+  return getUserBySessionToken(token?.token ?? null);
 }

@@ -94,6 +94,6 @@ export async function POST(request: Request) {
     message: "تم إنشاء المدير العام بنجاح. جاري تحويلك إلى لوحة التحكم.",
     user: sessionUser
   });
-  response.headers.set("Set-Cookie", sessionCookieHeader(token, request));
+  response.headers.set("Set-Cookie", await sessionCookieHeader(token, request));
   return response;
 }

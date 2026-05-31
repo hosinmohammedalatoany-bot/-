@@ -147,6 +147,6 @@ export async function POST(request: Request) {
     status: "active",
     user: sessionUser
   });
-  response.headers.set("Set-Cookie", sessionCookieHeader(token, request));
+  response.headers.set("Set-Cookie", await sessionCookieHeader(token, request));
   return response;
 }

@@ -370,14 +370,72 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       return;
     }
 
+    const pending = get().pendingOperations;
     set({ syncStatus: "syncing" });
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    set((state) => ({
-      pendingOperations: [],
-      syncStatus: navigator.onLine ? "online" : "offline",
-      lastSyncAt: new Date().toISOString(),
-      auditEvents: [audit("Offline queue synchronized", `${state.pendingOperations.length} operations`), ...state.auditEvents]
-    }));
+
+    try {
+      const deviceId =
+        typeof localStorage !== "undefined"
+          ? (localStorage.getItem("br_device_id") ??
+            (() => {
+              const id = `dev-${crypto.randomUUID().slice(0, 8)}`;
+              localStorage.setItem("br_device_id", id);
+              return id;
+            })())
+          : "web-client";
+
+      const response = await fetch("/api/sync", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          operations: pending.map((op) => ({
+            id: op.id,
+            operation: op.operation,
+            entityId: op.entityId,
+            payload: op.payload,
+            createdAt: op.createdAt
+          }))
+        })
+      });
+
+      if (response.status === 401) {
+        set({
+          syncStatus: navigator.onLine ? "online" : "offline",
+          auditEvents: [
+            audit("Sync failed — session expired", "يرجى تسجيل الدخول من جديد"),
+            ...get().auditEvents
+          ]
+        });
+        void persistState(snapshot(get()));
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`sync ${response.status}`);
+      }
+
+      const result = (await response.json()) as { accepted?: number; note?: string };
+      set((state) => ({
+        pendingOperations: [],
+        syncStatus: navigator.onLine ? "online" : "offline",
+        lastSyncAt: new Date().toISOString(),
+        auditEvents: [
+          audit(
+            "Offline queue synchronized",
+            `${result.accepted ?? pending.length} operations${result.note ? ` — ${result.note}` : ""}`
+          ),
+          ...state.auditEvents
+        ]
+      }));
+    } catch {
+      set((state) => ({
+        syncStatus: navigator.onLine ? "online" : "offline",
+        auditEvents: [audit("Sync failed", "تعذر الاتصال بالخادم — ستُعاد المحاولة لاحقاً"), ...state.auditEvents]
+      }));
+    }
+
     void persistState(snapshot(get()));
   },
   recordPrint: (documentType, documentNumber, branch = "الفرع الرئيسي") => {

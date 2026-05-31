@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { readDb, writeDb } from "@/lib/server/db";
-import { parseSessionToken } from "@/lib/server/session";
+import { resolveSessionToken } from "@/lib/server/session";
 
 export async function POST(request: Request) {
-  const token = parseSessionToken(request.headers.get("cookie"));
+  const token = await resolveSessionToken(request.headers.get("cookie"));
   if (token) {
     const db = await readDb();
     db.sessions = db.sessions.filter((s) => s.token !== token);

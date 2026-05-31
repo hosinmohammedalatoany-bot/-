@@ -14,7 +14,7 @@
     "check:urls": "node scripts/check-production-urls.mjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck && npm run check:urls && node scripts/test-register-auth.mjs",
+    "test": "npm run typecheck && npm run check:urls && node scripts/test-register-auth.mjs && node scripts/test-session-signature.mjs",
     "test:register": "node scripts/test-register-auth.mjs",
     "reset:system": "node scripts/reset-system.mjs"
   },
