@@ -71,6 +71,7 @@ interface ShowroomState extends PersistedState {
   setNetworkStatus: (online: boolean) => void;
   synchronize: () => Promise<void>;
   recordPrint: (documentType: string, documentNumber: string, branch?: string) => void;
+  resetLocalShowroomData: () => Promise<void>;
 }
 
 const baseState: PersistedState = {
@@ -83,6 +84,21 @@ const baseState: PersistedState = {
   invoices: seedInvoices,
   pendingOperations: [],
   auditEvents: seedAuditEvents,
+  printedDocuments: [],
+  lastSyncAt: undefined
+};
+
+/** Empty showroom data (no demo/seed records). */
+export const factoryEmptyState: PersistedState = {
+  vehicles: [],
+  customers: [],
+  leads: [],
+  installments: [],
+  expenses: [],
+  reservations: [],
+  invoices: [],
+  pendingOperations: [],
+  auditEvents: [],
   printedDocuments: [],
   lastSyncAt: undefined
 };
@@ -383,5 +399,24 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       auditEvents: [audit("طباعة مستند", `${documentType} ${documentNumber}`), ...state.auditEvents]
     }));
     void persistState(snapshot(get()));
+  },
+  resetLocalShowroomData: async () => {
+    if (typeof indexedDB !== "undefined") {
+      const db = await openDatabase();
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.delete(STATE_KEY);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+    set({
+      ...factoryEmptyState,
+      isHydrated: true,
+      conflictMessages: [],
+      syncStatus: typeof navigator !== "undefined" && navigator.onLine ? "online" : "offline"
+    });
+    await persistState(factoryEmptyState);
   }
 }));

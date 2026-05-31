@@ -14,6 +14,7 @@ export function BackupSyncModule() {
   const pendingOperations = useShowroomStore((s) => s.pendingOperations);
   const lastSyncAt = useShowroomStore((s) => s.lastSyncAt);
   const synchronize = useShowroomStore((s) => s.synchronize);
+  const resetLocalShowroomData = useShowroomStore((s) => s.resetLocalShowroomData);
   const vehicles = useShowroomStore((s) => s.vehicles);
   const customers = useShowroomStore((s) => s.customers);
   const leads = useShowroomStore((s) => s.leads);
@@ -26,6 +27,21 @@ export function BackupSyncModule() {
     await synchronize();
     log(ar.success);
     setSyncing(false);
+  }
+
+  async function resetLocalData() {
+    const ok = window.confirm(
+      "سيتم حذف جميع السيارات والعملاء والفواتير المحفوظة على هذا الجهاز. لا يمكن التراجع. هل تريد المتابعة؟"
+    );
+    if (!ok) {
+      return;
+    }
+    await resetLocalShowroomData();
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("br_user");
+    }
+    log("تم تصفير البيانات المحلية على هذا الجهاز.");
+    window.location.href = "/login";
   }
 
   function exportBackup() {
@@ -76,6 +92,9 @@ export function BackupSyncModule() {
           </PrimaryButton>
           <SecondaryButton onClick={exportBackup}>
             تنزيل نسخة احتياطية
+          </SecondaryButton>
+          <SecondaryButton onClick={() => void resetLocalData()}>
+            تصفير البيانات المحلية (هذا الجهاز)
           </SecondaryButton>
         </div>
       </section>

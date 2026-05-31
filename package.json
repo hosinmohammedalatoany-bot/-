@@ -13,7 +13,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && node scripts/test-register-auth.mjs",
-    "test:register": "node scripts/test-register-auth.mjs"
+    "test:register": "node scripts/test-register-auth.mjs",
+    "reset:system": "node scripts/reset-system.mjs"
   },
   "repository": {
     "type": "git",

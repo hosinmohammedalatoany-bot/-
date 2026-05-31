@@ -94,6 +94,19 @@ const emptyDb: ServerDb = {
   registrationOpen: true
 };
 
+/** Factory-default server database (no users, setup required). */
+export function getEmptyDb(): ServerDb {
+  return {
+    ...emptyDb,
+    branches: [...emptyDb.branches]
+  };
+}
+
+/** Wipes users, sessions, tokens, and audit data; returns app to first-time `/setup`. */
+export async function resetServerDatabase() {
+  await writeDb(getEmptyDb());
+}
+
 function normalizeDb(db: ServerDb): ServerDb {
   db.sessions = db.sessions ?? [];
   db.emailVerificationTokens = db.emailVerificationTokens ?? [];
