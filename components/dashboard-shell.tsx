@@ -33,6 +33,8 @@ import {
   Wrench
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { EnterpriseModulePanel } from "@/components/enterprise-panels";
+import { GlobalSearchBar } from "@/components/global-search-bar";
 import {
   modules,
   permissionGroups,
@@ -40,6 +42,7 @@ import {
   type ModuleKey,
   type Vehicle
 } from "@/lib/domain";
+import { isStaleVehicle } from "@/lib/enterprise";
 import { useShowroomStore } from "@/lib/offline-store";
 import {
   type CustomerInput,
@@ -227,9 +230,15 @@ export function DashboardShell() {
   });
   const paymentForm = useValidatedForm<InstallmentPaymentInput>({ installmentId: "ins-001", amount: 950 });
 
+  const refreshNotifications = useShowroomStore((state) => state.refreshNotifications);
+
   useEffect(() => {
     void hydrateStore();
   }, [hydrateStore]);
+
+  useEffect(() => {
+    refreshNotifications();
+  }, [refreshNotifications, store.vehicles.length, store.installments.length]);
 
   useEffect(() => {
     const updateNetwork = () => setNetworkStatus(navigator.onLine);
@@ -253,10 +262,22 @@ export function DashboardShell() {
       (sum, vehicle) => sum + vehicle.salePrice - vehicle.purchasePrice - vehicle.maintenanceCost - vehicle.transportationCost,
       0
     );
+    const today = new Date().toDateString();
     const todaysInstallments = store.installments.filter((installment) => {
       const dueDate = new Date(installment.dueDate);
-      return dueDate.toDateString() === new Date().toDateString();
+      return dueDate.toDateString() === today;
     });
+    const todaySales = store.invoices
+      .filter((inv) => new Date(inv.createdAt).toDateString() === today)
+      .reduce((sum, inv) => sum + inv.total - inv.discount, 0);
+    const todayProfit = store.vehicles
+      .filter((v) => v.status === "sold" && new Date(v.updatedAt).toDateString() === today)
+      .reduce((sum, v) => sum + v.salePrice - v.purchasePrice - v.maintenanceCost, 0);
+    const staleVehicles = store.vehicles.filter(
+      (v) => v.status === "available" && isStaleVehicle(v.updatedAt)
+    ).length;
+    const pendingApprovals = store.approvals.filter((a) => a.status === "pending").length;
+    const unreadNotifications = store.notifications.filter((n) => !n.read).length;
     return {
       available,
       sold,
@@ -266,9 +287,14 @@ export function DashboardShell() {
       inventoryValue,
       expectedProfit,
       todaysInstallments: todaysInstallments.length,
-      overdueInstallments: store.installments.filter((installment) => installment.status === "overdue").length
+      overdueInstallments: store.installments.filter((installment) => installment.status === "overdue").length,
+      todaySales,
+      todayProfit,
+      staleVehicles,
+      pendingApprovals,
+      unreadNotifications
     };
-  }, [store.vehicles, store.invoices, store.expenses, store.installments]);
+  }, [store.vehicles, store.invoices, store.expenses, store.installments, store.approvals, store.notifications]);
 
   function log(message: string) {
     setActionLog((items) => [message, ...items].slice(0, 8));
@@ -354,11 +380,18 @@ export function DashboardShell() {
       <div className="mx-auto grid max-w-[1500px] gap-5 xl:grid-cols-[290px_1fr]">
         <aside className="luxury-panel sticky top-5 h-fit rounded-[2rem] p-4">
           <BrandLogo />
-          <div className="mt-5 grid grid-cols-2 gap-2">
+          <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white/60">
+            <p className="font-semibold text-white">{store.session.userName}</p>
+            <p>{store.session.role} · {store.session.branch}</p>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <SecondaryButton onClick={() => setRtl((value) => !value)}>{rtl ? "LTR" : "RTL"}</SecondaryButton>
             <SecondaryButton onClick={() => store.setNetworkStatus(store.syncStatus === "offline")}>
               {store.syncStatus === "offline" ? "Go Online" : "Go Offline"}
             </SecondaryButton>
+            <div className="col-span-2">
+              <SecondaryButton onClick={() => store.logout()}>تسجيل الخروج</SecondaryButton>
+            </div>
           </div>
           <nav className="mt-5 max-h-[68vh] space-y-1 overflow-auto pr-1">
             {modules.map((module) => (
@@ -396,6 +429,9 @@ export function DashboardShell() {
                   WhatsApp operations for an owner-controlled car showroom system.
                 </p>
               </div>
+              <div className="flex w-full max-w-md flex-col gap-3 lg:max-w-sm">
+                <GlobalSearchBar />
+              </div>
               <div className="grid min-w-[280px] gap-3 rounded-3xl border border-white/10 bg-black/30 p-4">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-2 text-sm text-white/70">
@@ -424,14 +460,14 @@ export function DashboardShell() {
 
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Available Cars", metrics.available, <Car key="icon" className="h-5 w-5" />],
-              ["Total Sales", formatCurrency(metrics.totalSales), <Receipt key="icon" className="h-5 w-5" />],
-              ["Expected Profit", formatCurrency(metrics.expectedProfit), <BadgeDollarSign key="icon" className="h-5 w-5" />],
-              ["Overdue Installments", metrics.overdueInstallments, <AlertTriangle key="icon" className="h-5 w-5" />],
-              ["Customers", store.customers.length, <Users key="icon" className="h-5 w-5" />],
-              ["Leads", store.leads.length, <UserRoundPlus key="icon" className="h-5 w-5" />],
-              ["Reserved Cars", metrics.reserved, <CheckCircle2 key="icon" className="h-5 w-5" />],
-              ["Inventory Value", formatCurrency(metrics.inventoryValue), <PackageCheck key="icon" className="h-5 w-5" />]
+              ["مبيعات اليوم", formatCurrency(metrics.todaySales), <Receipt key="icon" className="h-5 w-5" />],
+              ["ربح اليوم", formatCurrency(metrics.todayProfit), <BadgeDollarSign key="icon" className="h-5 w-5" />],
+              ["سيارات متاحة", metrics.available, <Car key="icon" className="h-5 w-5" />],
+              ["أقساط متأخرة", metrics.overdueInstallments, <AlertTriangle key="icon" className="h-5 w-5" />],
+              ["سيارات راكدة", metrics.staleVehicles, <PackageCheck key="icon" className="h-5 w-5" />],
+              ["موافقات معلقة", metrics.pendingApprovals, <ClipboardCheck key="icon" className="h-5 w-5" />],
+              ["إشعارات", metrics.unreadNotifications, <Bell key="icon" className="h-5 w-5" />],
+              ["قيمة المخزون", formatCurrency(metrics.inventoryValue), <Gauge key="icon" className="h-5 w-5" />]
             ].map(([label, value, icon]) => (
               <motion.article
                 key={label.toString()}
@@ -459,12 +495,19 @@ export function DashboardShell() {
                 </div>
                 <StatusBadge status={selectedModule.arabicTitle} />
               </div>
+              <EnterpriseModulePanel moduleKey={store.selectedModule} />
               <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {selectedModule.capabilities.map((capability) => (
                   <button
                     type="button"
                     key={capability}
-                    onClick={() => log(`${selectedModule.title}: ${capability} action executed.`)}
+                    onClick={() => {
+                      log(`${selectedModule.title}: ${capability} action executed.`);
+                      if (capability.toLowerCase().includes("pdf")) exportPdf();
+                      if (capability.toLowerCase().includes("excel") || capability.toLowerCase().includes("export"))
+                        exportExcel();
+                      if (capability.toLowerCase().includes("print")) printCenter();
+                    }}
                     className="rounded-2xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-[#d6a84f]/60 hover:bg-[#d6a84f]/10"
                   >
                     <span className="text-sm font-bold text-white">{capability}</span>
@@ -558,6 +601,10 @@ export function DashboardShell() {
                     return;
                   }
                   const customer = store.addCustomer(parsed.data);
+                  if ("ok" in customer) {
+                    log(customer.message);
+                    return;
+                  }
                   log(`Customer ${customer.name} added locally.`);
                 })}
               >
@@ -641,6 +688,10 @@ export function DashboardShell() {
                   return;
                 }
                 const reservation = store.addReservation(parsed.data);
+                if ("ok" in reservation) {
+                  log(reservation.message);
+                  return;
+                }
                 log(`Reservation ${reservation.id} created and vehicle marked reserved.`);
               })}
             >
@@ -672,6 +723,10 @@ export function DashboardShell() {
                   return;
                 }
                 const invoice = store.addInvoice(parsed.data);
+                if ("ok" in invoice) {
+                  log(invoice.message);
+                  return;
+                }
                 log(`Invoice ${invoice.id} issued with accounting entry.`);
               })}
             >

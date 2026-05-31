@@ -1,5 +1,5 @@
-import { DashboardShell } from "@/components/dashboard-shell";
+import { AppGate } from "@/components/app-gate";
 
 export default function HomePage() {
-  return <DashboardShell />;
+  return <AppGate />;
 }
