@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PrintRootHost } from "@/components/print/print-root-host";
 import { PwaRegister } from "@/components/pwa-register";
-import { RuntimeOriginGuard } from "@/components/runtime-origin-guard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -37,7 +36,6 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <body className="rtl-support antialiased">
         <PwaRegister />
-        <RuntimeOriginGuard />
         <PrintRootHost />
         {children}
       </body>

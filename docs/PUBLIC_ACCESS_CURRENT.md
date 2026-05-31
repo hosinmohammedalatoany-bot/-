@@ -4,13 +4,13 @@
 
 | البند | القيمة |
 |--------|--------|
-| **الرابط العام** | https://carol-edmonton-assure-bind.trycloudflare.com |
-| تسجيل الدخول | https://carol-edmonton-assure-bind.trycloudflare.com/login |
-| **إنشاء حساب** (يعمل مباشرة — أول حساب = مدير النظام) | https://carol-edmonton-assure-bind.trycloudflare.com/register |
-| إعداد بديل | https://carol-edmonton-assure-bind.trycloudflare.com/setup |
-| لوحة التحكم | https://carol-edmonton-assure-bind.trycloudflare.com/dashboard/dashboard |
+| **الرابط العام** | https://physically-prepared-michael-authentication.trycloudflare.com |
+| تسجيل الدخول | https://physically-prepared-michael-authentication.trycloudflare.com/login |
+| **إنشاء حساب** (يعمل مباشرة — أول حساب = مدير النظام) | https://physically-prepared-michael-authentication.trycloudflare.com/register |
+| إعداد بديل | https://physically-prepared-michael-authentication.trycloudflare.com/setup |
+| لوحة التحكم | https://physically-prepared-michael-authentication.trycloudflare.com/dashboard/dashboard |
 
-**آخر تحديث:** 2026-05-31 — الرابط السابق `gnu-convention-satellite-bowling` توقف لأن عملية النفق أُنهيت.
+**آخر تحديث:** 2026-05-31 — أُزيلت رسائل PUBLIC_BASE_URL من الواجهة؛ النفق يستخدم الرابط الحالي تلقائياً.
 
 ## إعادة تشغيل الرابط
 

@@ -242,22 +242,7 @@ export function buildRuntimeConfig(request?: Request): RuntimeConfigPayload {
   const info: string[] = [];
   const warnings: string[] = [];
 
-  if (requestOrigin && configuredPublic) {
-    try {
-      const envHost = new URL(configuredPublic).host;
-      const liveHost = new URL(requestOrigin).host;
-      if (envHost !== liveHost) {
-        if (!isTunnel) {
-          warnings.push(
-            "PUBLIC_BASE_URL / NEXT_PUBLIC_APP_URL لا يطابق الرابط الحالي — يُستخدم origin الحالي."
-          );
-        }
-        // Tunnel: resolvePublicAppOrigin already uses request origin; no UI banner.
-      }
-    } catch {
-      /* ignore */
-    }
-  }
+  // Env vs live origin mismatch is handled silently (tunnel uses request origin; no UI banners).
 
   if (
     configuredPublic &&
