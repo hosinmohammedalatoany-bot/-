@@ -24,12 +24,27 @@ function activeModuleFromPath(pathname: string): ModuleKey {
   return "dashboard";
 }
 
+function readCachedSessionUser(): ClientUser | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const raw = localStorage.getItem("br_user");
+    if (raw) {
+      return JSON.parse(raw) as ClientUser;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const activeModule = activeModuleFromPath(pathname);
   const [mobileNav, setMobileNav] = useState(false);
-  const [sessionUser, setSessionUser] = useState<ClientUser | null>(null);
+  const [sessionUser, setSessionUser] = useState<ClientUser | null>(readCachedSessionUser);
 
   const hydrate = useShowroomStore((s) => s.hydrate);
   const syncStatus = useShowroomStore((s) => s.syncStatus);
@@ -44,14 +59,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [hydrate]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("br_user");
-      if (raw) {
-        setSessionUser(JSON.parse(raw) as ClientUser);
-      }
-    } catch {
-      setSessionUser(null);
-    }
     void fetch("/api/auth/me", { credentials: "include" })
       .then(async (res) => {
         if (res.status === 401) {
