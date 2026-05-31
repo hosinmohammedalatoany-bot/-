@@ -71,6 +71,14 @@ interface ShowroomState extends PersistedState {
   setNetworkStatus: (online: boolean) => void;
   synchronize: () => Promise<void>;
   recordPrint: (documentType: string, documentNumber: string, branch?: string) => void;
+  deleteVehicle: (vehicleId: string) => { ok: true } | { ok: false; message: string };
+  deleteCustomer: (customerId: string) => { ok: true } | { ok: false; message: string };
+  deleteLead: (leadId: string) => { ok: true } | { ok: false; message: string };
+  deleteReservation: (reservationId: string) => { ok: true } | { ok: false; message: string };
+  deleteInvoice: (invoiceId: string) => { ok: true } | { ok: false; message: string };
+  deleteExpense: (expenseId: string) => { ok: true } | { ok: false; message: string };
+  deleteInstallment: (installmentId: string) => { ok: true } | { ok: false; message: string };
+  deletePrintedDocument: (documentId: string) => { ok: true } | { ok: false; message: string };
   resetLocalShowroomData: () => Promise<void>;
 }
 
@@ -465,6 +473,193 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       auditEvents: [audit("طباعة مستند", `${documentType} ${documentNumber}`), ...state.auditEvents]
     }));
     void persistState(snapshot(get()));
+  },
+  deleteVehicle: (vehicleId) => {
+    const vehicle = get().vehicles.find((item) => item.id === vehicleId);
+    if (!vehicle) {
+      return { ok: false, message: "السيارة غير موجودة" };
+    }
+    if (get().reservations.some((item) => item.vehicleId === vehicleId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد حجوزات مرتبطة بهذه السيارة" };
+    }
+    if (get().invoices.some((item) => item.vehicleId === vehicleId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد فواتير مرتبطة بهذه السيارة" };
+    }
+    if (get().installments.some((item) => item.vehicleId === vehicleId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد أقساط مرتبطة بهذه السيارة" };
+    }
+
+    set((state) => ({
+      vehicles: state.vehicles.filter((item) => item.id !== vehicleId),
+      pendingOperations: [
+        queue("vehicle.delete", vehicle.internalNumber, vehicleId, { id: vehicleId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Vehicle deleted", vehicle.internalNumber), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteCustomer: (customerId) => {
+    const customer = get().customers.find((item) => item.id === customerId);
+    if (!customer) {
+      return { ok: false, message: "العميل غير موجود" };
+    }
+    if (get().reservations.some((item) => item.customerId === customerId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد حجوزات مرتبطة بهذا العميل" };
+    }
+    if (get().invoices.some((item) => item.customerId === customerId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد فواتير مرتبطة بهذا العميل" };
+    }
+    if (get().installments.some((item) => item.customerId === customerId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد أقساط مرتبطة بهذا العميل" };
+    }
+
+    set((state) => ({
+      customers: state.customers.filter((item) => item.id !== customerId),
+      pendingOperations: [
+        queue("customer.delete", customer.name, customerId, { id: customerId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Customer deleted", customer.name), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteLead: (leadId) => {
+    const lead = get().leads.find((item) => item.id === leadId);
+    if (!lead) {
+      return { ok: false, message: "العميل المحتمل غير موجود" };
+    }
+
+    set((state) => ({
+      leads: state.leads.filter((item) => item.id !== leadId),
+      pendingOperations: [queue("lead.delete", lead.name, leadId, { id: leadId }), ...state.pendingOperations],
+      auditEvents: [audit("Lead deleted", lead.name), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteReservation: (reservationId) => {
+    const reservation = get().reservations.find((item) => item.id === reservationId);
+    if (!reservation) {
+      return { ok: false, message: "الحجز غير موجود" };
+    }
+
+    const vehicleId = reservation.vehicleId;
+    set((state) => {
+      const reservations = state.reservations.filter((item) => item.id !== reservationId);
+      const vehicle = state.vehicles.find((item) => item.id === vehicleId);
+      const stillReserved =
+        reservations.some((item) => item.vehicleId === vehicleId) ||
+        state.invoices.some((item) => item.vehicleId === vehicleId);
+      const vehicles =
+        vehicle?.status === "reserved" && !stillReserved
+          ? state.vehicles.map((item) =>
+              item.id === vehicleId
+                ? { ...item, status: "available" as const, updatedAt: new Date().toISOString() }
+                : item
+            )
+          : state.vehicles;
+
+      return {
+        reservations,
+        vehicles,
+        pendingOperations: [
+          queue("reservation.delete", reservation.id, reservationId, { id: reservationId }),
+          ...state.pendingOperations
+        ],
+        auditEvents: [audit("Reservation deleted", reservation.id), ...state.auditEvents]
+      };
+    });
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteInvoice: (invoiceId) => {
+    const invoice = get().invoices.find((item) => item.id === invoiceId);
+    if (!invoice) {
+      return { ok: false, message: "الفاتورة غير موجودة" };
+    }
+
+    const vehicleId = invoice.vehicleId;
+    set((state) => {
+      const invoices = state.invoices.filter((item) => item.id !== invoiceId);
+      const vehicle = state.vehicles.find((item) => item.id === vehicleId);
+      const stillSold =
+        invoices.some((item) => item.vehicleId === vehicleId) ||
+        state.reservations.some((item) => item.vehicleId === vehicleId);
+      const vehicles =
+        vehicle?.status === "sold" && !stillSold
+          ? state.vehicles.map((item) =>
+              item.id === vehicleId
+                ? { ...item, status: "available" as const, updatedAt: new Date().toISOString() }
+                : item
+            )
+          : state.vehicles;
+
+      return {
+        invoices,
+        vehicles,
+        pendingOperations: [
+          queue("invoice.delete", invoice.id, invoiceId, { id: invoiceId }),
+          ...state.pendingOperations
+        ],
+        auditEvents: [audit("Invoice deleted", invoice.id), ...state.auditEvents]
+      };
+    });
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteExpense: (expenseId) => {
+    const expense = get().expenses.find((item) => item.id === expenseId);
+    if (!expense) {
+      return { ok: false, message: "المصروف غير موجود" };
+    }
+
+    set((state) => ({
+      expenses: state.expenses.filter((item) => item.id !== expenseId),
+      pendingOperations: [
+        queue("expense.delete", expense.category, expenseId, { id: expenseId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Expense deleted", expense.category), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteInstallment: (installmentId) => {
+    const installment = get().installments.find((item) => item.id === installmentId);
+    if (!installment) {
+      return { ok: false, message: "القسط غير موجود" };
+    }
+
+    set((state) => ({
+      installments: state.installments.filter((item) => item.id !== installmentId),
+      pendingOperations: [
+        queue("installment.delete", installment.id, installmentId, { id: installmentId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Installment deleted", installment.id), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deletePrintedDocument: (documentId) => {
+    const doc = get().printedDocuments.find((item) => item.id === documentId);
+    if (!doc) {
+      return { ok: false, message: "سجل الطباعة غير موجود" };
+    }
+
+    set((state) => ({
+      printedDocuments: state.printedDocuments.filter((item) => item.id !== documentId),
+      pendingOperations: [
+        queue("print.delete", doc.documentNumber, documentId, { id: documentId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Print log deleted", `${doc.documentType} ${doc.documentNumber}`), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
   },
   resetLocalShowroomData: async () => {
     if (typeof indexedDB !== "undefined") {

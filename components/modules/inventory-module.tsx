@@ -5,6 +5,7 @@ import { ar } from "@/lib/i18n/ar";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { ModulePage } from "@/components/modules/module-page";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, SecondaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { formatCurrency } from "@/lib/utils";
@@ -20,6 +21,7 @@ const statusLabels: Record<Vehicle["status"], string> = {
 
 export function InventoryModule() {
   const vehicles = useShowroomStore((s) => s.vehicles);
+  const deleteVehicle = useShowroomStore((s) => s.deleteVehicle);
   const [branch, setBranch] = useState("all");
   const [status, setStatus] = useState("all");
   const [manufacturer, setManufacturer] = useState("all");
@@ -122,6 +124,7 @@ export function InventoryModule() {
                   <th className="text-start">الحالة</th>
                   <th className="text-start">التكلفة</th>
                   <th className="text-start">سعر البيع</th>
+                  <th className="text-start">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -137,6 +140,14 @@ export function InventoryModule() {
                     </td>
                     <td>{formatCurrency(v.purchasePrice + v.maintenanceCost + v.transportationCost)}</td>
                     <td>{formatCurrency(v.salePrice)}</td>
+                    <td className="py-3">
+                      <DeleteRowButton
+                        onConfirm={() => {
+                          const result = deleteVehicle(v.id);
+                          if (!result.ok) window.alert(result.message);
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

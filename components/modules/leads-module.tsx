@@ -6,6 +6,7 @@ import { ar, moduleTitlesAr } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { leadSchema, type LeadInput } from "@/lib/validation";
@@ -33,6 +34,7 @@ export function LeadsModule() {
   const leads = useShowroomStore((s) => s.leads);
   const vehicles = useShowroomStore((s) => s.vehicles);
   const addLead = useShowroomStore((s) => s.addLead);
+  const deleteLead = useShowroomStore((s) => s.deleteLead);
   const { log, items } = useActionLog();
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -143,6 +145,7 @@ export function LeadsModule() {
                   <th className="text-start">الهاتف</th>
                   <th className="text-start">المصدر</th>
                   <th className="text-start">الحالة</th>
+                  <th className="text-start">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -153,6 +156,15 @@ export function LeadsModule() {
                     <td>{l.source}</td>
                     <td>
                       <StatusBadge status={statusLabels[l.status]} />
+                    </td>
+                    <td className="py-3">
+                      <DeleteRowButton
+                        onConfirm={() => {
+                          const result = deleteLead(l.id);
+                          if (!result.ok) window.alert(result.message);
+                          else log(`حذف العميل المحتمل ${l.name}`);
+                        }}
+                      />
                     </td>
                   </tr>
                 ))}

@@ -12,6 +12,7 @@ import {
 import { PrintDocumentActions } from "@/components/print/print-document-actions";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { ModulePage } from "@/components/modules/module-page";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, SecondaryButton } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { invoiceToDefaultLineItems } from "@/lib/print-line-items";
@@ -25,6 +26,7 @@ export function PrintingModule() {
   const vehicles = useShowroomStore((s) => s.vehicles);
   const customers = useShowroomStore((s) => s.customers);
   const recordPrint = useShowroomStore((s) => s.recordPrint);
+  const deletePrintedDocument = useShowroomStore((s) => s.deletePrintedDocument);
 
   const sampleRow = useMemo(() => {
     const inv = invoices[0];
@@ -167,6 +169,7 @@ export function PrintingModule() {
                   <th className="p-2 text-right">الفرع</th>
                   <th className="p-2 text-right">مرات الطباعة</th>
                   <th className="p-2 text-right">التاريخ</th>
+                  <th className="p-2 text-right">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,6 +180,14 @@ export function PrintingModule() {
                     <td className="p-2">{p.branch}</td>
                     <td className="p-2">{p.printCount}</td>
                     <td className="p-2">{formatDateTime(p.printedAt)}</td>
+                    <td className="p-2">
+                      <DeleteRowButton
+                        onConfirm={() => {
+                          const result = deletePrintedDocument(p.id);
+                          if (!result.ok) window.alert(result.message);
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

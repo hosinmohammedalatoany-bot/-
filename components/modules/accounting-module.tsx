@@ -7,6 +7,7 @@ import { useActionLog } from "@/hooks/use-action-log";
 import { buildProfitLossPrintHtml, buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { ModulePage } from "@/components/modules/module-page";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
 import { useShowroomMetrics } from "@/hooks/use-showroom-metrics";
 import { useShowroomStore } from "@/lib/offline-store";
@@ -24,6 +25,7 @@ export function AccountingModule() {
   const expenses = useShowroomStore((s) => s.expenses);
   const invoices = useShowroomStore((s) => s.invoices);
   const addExpense = useShowroomStore((s) => s.addExpense);
+  const deleteExpense = useShowroomStore((s) => s.deleteExpense);
   const metrics = useShowroomMetrics();
   const { log, items } = useActionLog();
   const [loading, setLoading] = useState(false);
@@ -120,6 +122,7 @@ export function AccountingModule() {
                   <th className="text-start">المبلغ</th>
                   <th className="text-start">الفرع</th>
                   <th className="text-start">التاريخ</th>
+                  <th className="text-start">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -129,6 +132,15 @@ export function AccountingModule() {
                     <td>{formatCurrency(e.amount)}</td>
                     <td>{e.branch}</td>
                     <td>{formatDateTime(e.createdAt)}</td>
+                    <td className="py-3">
+                      <DeleteRowButton
+                        onConfirm={() => {
+                          const result = deleteExpense(e.id);
+                          if (!result.ok) window.alert(result.message);
+                          else log(`حذف مصروف ${e.category}`);
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

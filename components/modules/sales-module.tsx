@@ -14,6 +14,7 @@ import { PrintToolbar } from "@/components/print/print-toolbar";
 import { invoiceToDefaultLineItems } from "@/lib/print-line-items";
 import { SelectCustomer, SelectVehicle } from "@/components/modules/form-selectors";
 import { ModulePage } from "@/components/modules/module-page";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { invoiceSchema, type InvoiceInput } from "@/lib/validation";
@@ -33,6 +34,7 @@ export function SalesModule() {
   const customers = useShowroomStore((s) => s.customers);
   const invoices = useShowroomStore((s) => s.invoices);
   const addInvoice = useShowroomStore((s) => s.addInvoice);
+  const deleteInvoice = useShowroomStore((s) => s.deleteInvoice);
   const { log, items } = useActionLog();
   const [loading, setLoading] = useState(false);
   const form = useForm<InvoiceInput>({ defaultValues: emptyInvoice });
@@ -175,6 +177,13 @@ export function SalesModule() {
                         title={`عقد ${row.docNo}`}
                         getHtml={() => printContract(row.docNo, row)}
                         onPrinted={() => log(`طباعة عقد ${row.docNo}`)}
+                      />
+                      <DeleteRowButton
+                        onConfirm={() => {
+                          const result = deleteInvoice(row.inv.id);
+                          if (!result.ok) window.alert(result.message);
+                          else log(`حذف الفاتورة ${row.docNo}`);
+                        }}
                       />
                     </td>
                   </tr>

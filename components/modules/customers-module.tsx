@@ -6,6 +6,7 @@ import { ar, moduleTitlesAr } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { customerSchema, type CustomerInput } from "@/lib/validation";
@@ -23,6 +24,7 @@ const emptyCustomer: CustomerInput = {
 export function CustomersModule() {
   const customers = useShowroomStore((s) => s.customers);
   const addCustomer = useShowroomStore((s) => s.addCustomer);
+  const deleteCustomer = useShowroomStore((s) => s.deleteCustomer);
   const { log, items } = useActionLog();
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -125,6 +127,7 @@ export function CustomersModule() {
                   <th className="text-start">البريد</th>
                   <th className="text-start">الهوية</th>
                   <th className="text-start">المشتريات</th>
+                  <th className="text-start">{ar.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/10">
@@ -135,6 +138,15 @@ export function CustomersModule() {
                     <td dir="ltr">{c.email}</td>
                     <td>{c.idNumber}</td>
                     <td>{c.purchases}</td>
+                    <td className="py-3">
+                      <DeleteRowButton
+                        onConfirm={() => {
+                          const result = deleteCustomer(c.id);
+                          if (!result.ok) window.alert(result.message);
+                          else log(`حذف العميل ${c.name}`);
+                        }}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -13,6 +13,7 @@ import { PrintDocumentActions } from "@/components/print/print-document-actions"
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { installmentsToScheduleRows } from "@/lib/print-line-items";
 import { ModulePage } from "@/components/modules/module-page";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { installmentPaymentSchema, type InstallmentPaymentInput } from "@/lib/validation";
@@ -21,6 +22,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 export function InstallmentsModule() {
   const installments = useShowroomStore((s) => s.installments);
   const recordInstallmentPayment = useShowroomStore((s) => s.recordInstallmentPayment);
+  const deleteInstallment = useShowroomStore((s) => s.deleteInstallment);
   const { log, items } = useActionLog();
   const [loading, setLoading] = useState(false);
   const form = useForm<InstallmentPaymentInput>({
@@ -169,17 +171,26 @@ export function InstallmentsModule() {
                       <StatusBadge status={i.status} />
                     </td>
                     <td>
-                      <PrintDocumentActions
-                        title={`إيصال ${i.id}`}
-                        getHtml={() =>
-                          buildPaymentReceiptPrintHtml({
-                            receiptNumber: `RCP-${i.id}`,
-                            amount: i.paidAmount > 0 ? i.paidAmount : i.amount,
-                            reference: i.id,
-                            note: "إيصال دفع قسط"
-                          })
-                        }
-                      />
+                      <div className="flex flex-wrap gap-2">
+                        <PrintDocumentActions
+                          title={`إيصال ${i.id}`}
+                          getHtml={() =>
+                            buildPaymentReceiptPrintHtml({
+                              receiptNumber: `RCP-${i.id}`,
+                              amount: i.paidAmount > 0 ? i.paidAmount : i.amount,
+                              reference: i.id,
+                              note: "إيصال دفع قسط"
+                            })
+                          }
+                        />
+                        <DeleteRowButton
+                          onConfirm={() => {
+                            const result = deleteInstallment(i.id);
+                            if (!result.ok) window.alert(result.message);
+                            else log(`حذف القسط ${i.id}`);
+                          }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}

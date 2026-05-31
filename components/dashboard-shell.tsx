@@ -33,6 +33,7 @@ import {
   Wrench
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { exportHtmlAsPdf, printHtml } from "@/lib/print";
 import {
@@ -844,6 +845,12 @@ export function DashboardShell() {
                                   </button>
                                 )
                               )}
+                              <DeleteRowButton
+                                onConfirm={() => {
+                                  const result = store.deleteVehicle(vehicle.id);
+                                  if (!result.ok) window.alert(result.message);
+                                }}
+                              />
                             </div>
                           </td>
                         </tr>

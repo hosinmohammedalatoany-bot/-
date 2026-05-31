@@ -41,13 +41,21 @@ export type EntityStatus =
 export type QueueOperation =
   | "vehicle.create"
   | "vehicle.update"
+  | "vehicle.delete"
   | "customer.create"
+  | "customer.delete"
   | "lead.create"
+  | "lead.delete"
   | "reservation.create"
+  | "reservation.delete"
   | "invoice.create"
+  | "invoice.delete"
   | "expense.create"
+  | "expense.delete"
   | "installment.payment"
-  | "file.attach";
+  | "installment.delete"
+  | "file.attach"
+  | "print.delete";
 
 export type SyncStatus = "online" | "offline" | "syncing";
 

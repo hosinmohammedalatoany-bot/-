@@ -9,6 +9,7 @@ import { PrintDocumentActions } from "@/components/print/print-document-actions"
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { SelectCustomer, SelectVehicle } from "@/components/modules/form-selectors";
 import { ModulePage } from "@/components/modules/module-page";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { reservationSchema, type ReservationInput } from "@/lib/validation";
@@ -27,6 +28,7 @@ export function ReservationsModule() {
   const customers = useShowroomStore((s) => s.customers);
   const reservations = useShowroomStore((s) => s.reservations);
   const addReservation = useShowroomStore((s) => s.addReservation);
+  const deleteReservation = useShowroomStore((s) => s.deleteReservation);
   const { log, items } = useActionLog();
   const [loading, setLoading] = useState(false);
   const form = useForm<ReservationInput>({ defaultValues: emptyReservation });
@@ -116,18 +118,27 @@ export function ReservationsModule() {
                       <td>{formatCurrency(r.deposit)}</td>
                       <td>{formatDateTime(r.expiresAt)}</td>
                       <td>
-                        <PrintDocumentActions
-                          title={`إيصال حجز ${r.id}`}
-                          getHtml={() =>
-                            buildPaymentReceiptPrintHtml({
-                              receiptNumber: `RES-${r.id}`,
-                              amount: r.deposit,
-                              payerName: c?.name,
-                              reference: r.id,
-                              note: "إيصال حجز"
-                            })
-                          }
-                        />
+                        <div className="flex flex-wrap gap-2">
+                          <PrintDocumentActions
+                            title={`إيصال حجز ${r.id}`}
+                            getHtml={() =>
+                              buildPaymentReceiptPrintHtml({
+                                receiptNumber: `RES-${r.id}`,
+                                amount: r.deposit,
+                                payerName: c?.name,
+                                reference: r.id,
+                                note: "إيصال حجز"
+                              })
+                            }
+                          />
+                          <DeleteRowButton
+                            onConfirm={() => {
+                              const result = deleteReservation(r.id);
+                              if (!result.ok) window.alert(result.message);
+                              else log(`حذف الحجز ${r.id}`);
+                            }}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );

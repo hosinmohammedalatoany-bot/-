@@ -7,6 +7,7 @@ import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
+import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, SecondaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
 import { vehicleSchema, type VehicleInput } from "@/lib/validation";
@@ -70,6 +71,7 @@ export function CarsModule() {
   const vehicles = useShowroomStore((s) => s.vehicles);
   const addVehicle = useShowroomStore((s) => s.addVehicle);
   const updateVehicleStatus = useShowroomStore((s) => s.updateVehicleStatus);
+  const deleteVehicle = useShowroomStore((s) => s.deleteVehicle);
   const { log, items } = useActionLog();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -235,6 +237,16 @@ export function CarsModule() {
                         {v.status !== "sold" && (
                           <SecondaryButton onClick={() => updateVehicleStatus(v.id, "available")}>متوفرة</SecondaryButton>
                         )}
+                        <DeleteRowButton
+                          onConfirm={() => {
+                            const result = deleteVehicle(v.id);
+                            if (!result.ok) {
+                              window.alert(result.message);
+                              return;
+                            }
+                            log(`حذف السيارة ${v.internalNumber}`);
+                          }}
+                        />
                       </div>
                     </td>
                   </tr>
