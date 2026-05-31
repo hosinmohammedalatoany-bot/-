@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
+import { loginStatusMessagesAr } from "@/lib/server/auth-constants";
 import { createToken, readDb, rolePermissions, verifyPassword, writeDb } from "@/lib/server/db";
+import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
-
-function sessionCookie(token: string) {
-  return `br_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 12}`;
-}
 
 export async function POST(request: Request) {
   const db = await readDb();
@@ -40,11 +38,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "بيانات الدخول غير صحيحة." }, { status: 401 });
   }
 
+  if (user.status !== "active") {
+    const statusMessage =
+      loginStatusMessagesAr[user.status as keyof typeof loginStatusMessagesAr] ??
+      "لا يمكن تسجيل الدخول بهذا الحساب.";
+    return NextResponse.json({ error: statusMessage, status: user.status }, { status: 403 });
+  }
+
   user.failedAttempts = 0;
   user.lockedUntil = undefined;
-  await writeDb(db);
 
   const token = createToken();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + sessionMaxAgeSeconds() * 1000).toISOString();
+  db.sessions = db.sessions.filter((s) => s.userId !== user.id || new Date(s.expiresAt) > now);
+  db.sessions.push({
+    token,
+    userId: user.id,
+    createdAt: now.toISOString(),
+    expiresAt
+  });
+  await writeDb(db);
+
   const response = NextResponse.json({
     ok: true,
     user: {
@@ -56,6 +71,6 @@ export async function POST(request: Request) {
       permissions: user.permissions.length ? user.permissions : rolePermissions[user.role]
     }
   });
-  response.headers.set("Set-Cookie", sessionCookie(token));
+  response.headers.set("Set-Cookie", sessionCookieHeader(token));
   return response;
 }

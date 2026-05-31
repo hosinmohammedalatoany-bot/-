@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ar } from "@/lib/i18n/ar";
 import { ModulePage } from "@/components/modules/module-page";
+import { UserApprovalsPanel } from "@/components/modules/user-approvals-panel";
 import { PrimaryButton } from "@/components/ui/primitives";
 import { useActionLog } from "@/hooks/use-action-log";
 
@@ -80,6 +81,8 @@ export function PermissionsModule() {
 
   return (
     <ModulePage moduleKey="permissions">
+      <UserApprovalsPanel />
+
       <section className="luxury-panel rounded-[2rem] p-5">
         <h3 className="font-bold text-white">الأدوار والصلاحيات</h3>
         <p className="mt-1 text-sm text-white/55">

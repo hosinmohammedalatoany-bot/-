@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { ar } from "@/lib/i18n/ar";
 import { cn } from "@/lib/utils";
+import type { RegisterableRole } from "@/lib/server/auth-constants";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm text-white outline-none transition focus:border-[#d6a84f]/70";
@@ -101,6 +102,9 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
         <a href="/forgot-password" className="mt-4 block text-center text-sm text-[#d6a84f] hover:underline">
           {ar.forgotPassword}
         </a>
+        <a href="/register" className="mt-2 block text-center text-sm text-white/55 hover:text-[#d6a84f]">
+          {ar.register}
+        </a>
       </div>
     </div>
   );
@@ -110,19 +114,25 @@ export function SetupForm() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [branch, setBranch] = useState("الفرع الرئيسي");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (password !== confirmPassword) {
+      setMessage("كلمة المرور وتأكيدها غير متطابقين.");
+      return;
+    }
     setLoading(true);
     setMessage(null);
     const response = await fetch("/api/auth/setup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, branch })
+      body: JSON.stringify({ name, email, phone, password, branch })
     });
     const data = (await response.json()) as { error?: string; message?: string };
     setLoading(false);
@@ -141,9 +151,19 @@ export function SetupForm() {
         <h1 className="mt-6 text-2xl font-black text-white">{ar.setupTitle}</h1>
         <p className="mt-2 text-sm text-white/55">{ar.setupHint}</p>
         <form className="mt-6 grid gap-3" onSubmit={onSubmit}>
-          <input className={inputClass} placeholder="الاسم الكامل" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
           <input className={inputClass} type="email" placeholder={ar.email} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className={inputClass} type="tel" placeholder={ar.phone} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <input className={inputClass} type="password" placeholder={ar.password} dir="ltr" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            className={inputClass}
+            type="password"
+            placeholder={ar.confirmPassword}
+            dir="ltr"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
           <input className={inputClass} placeholder={ar.branch} value={branch} onChange={(e) => setBranch(e.target.value)} />
           {message && <p className="rounded-xl bg-white/10 p-3 text-sm">{message}</p>}
           <button type="submit" disabled={loading} className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] py-3 font-bold text-black disabled:opacity-50">
@@ -193,6 +213,238 @@ export function ForgotPasswordForm() {
         )}
         <a href="/login" className="mt-4 block text-sm text-[#d6a84f]">
           {ar.back}
+        </a>
+      </div>
+    </div>
+  );
+}
+
+type RegisterConfig = {
+  branches: string[];
+  roles: { value: RegisterableRole; label: string }[];
+};
+
+export function RegisterForm() {
+  const router = useRouter();
+  const [config, setConfig] = useState<RegisterConfig | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<RegisterableRole>("sales");
+  const [branch, setBranch] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{ type: "ok" | "err"; text: string; verifyUrl?: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/register")
+      .then((r) => r.json())
+      .then((data: RegisterConfig & { setupCompleted?: boolean; open?: boolean; message?: string }) => {
+        if (!data.branches) {
+          if (data.setupCompleted === false) router.replace("/setup");
+          return;
+        }
+        setConfig({ branches: data.branches, roles: data.roles });
+        setBranch(data.branches[0] ?? "");
+        if (data.roles[0]) setRole(data.roles[0].value);
+      })
+      .catch(() => setMessage({ type: "err", text: "تعذر تحميل إعدادات التسجيل." }));
+  }, [router]);
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          phone,
+          password,
+          confirmPassword,
+          role,
+          branch,
+          acceptTerms
+        })
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        message?: string;
+        verifyUrl?: string;
+      };
+      if (!response.ok) {
+        setMessage({ type: "err", text: data.error ?? ar.error });
+        return;
+      }
+      setMessage({
+        type: "ok",
+        text: data.message ?? `${ar.success}. ${ar.pendingApproval}.`,
+        verifyUrl: data.verifyUrl
+      });
+    } catch {
+      setMessage({ type: "err", text: "تعذر الاتصال بالخادم." });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-10">
+      <div className="luxury-panel rounded-[2rem] p-8">
+        <BrandLogo />
+        <h1 className="mt-6 text-center text-2xl font-black text-white">{ar.appFullName}</h1>
+        <p className="mt-2 text-center text-sm text-white/55">{ar.registerTitle}</p>
+        <p className="mt-1 text-center text-xs text-white/45">{ar.registerHint}</p>
+        <form className="mt-6 grid gap-3" onSubmit={onSubmit}>
+          <input className={inputClass} placeholder={ar.fullName} value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className={inputClass} type="email" placeholder={ar.email} dir="ltr" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className={inputClass} type="tel" placeholder={ar.phone} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+          <div className="relative">
+            <input
+              className={cn(inputClass, "pe-20")}
+              type={showPassword ? "text" : "password"}
+              placeholder={ar.password}
+              dir="ltr"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 end-2 text-xs text-[#d6a84f]"
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? ar.hidePassword : ar.showPassword}
+            </button>
+          </div>
+          <input
+            className={inputClass}
+            type="password"
+            placeholder={ar.confirmPassword}
+            dir="ltr"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+          />
+          <label className="grid gap-1.5 text-sm text-white/70">
+            <span>{ar.accountType}</span>
+            <select
+              className={inputClass}
+              value={role}
+              onChange={(e) => setRole(e.target.value as RegisterableRole)}
+              required
+              disabled={!config}
+            >
+              {config?.roles.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm text-white/70">
+            <span>{ar.branch}</span>
+            <select
+              className={inputClass}
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              required
+              disabled={!config}
+            >
+              {config?.branches.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-start gap-2 text-sm text-white/60">
+            <input type="checkbox" className="mt-1" checked={acceptTerms} onChange={(e) => setAcceptTerms(e.target.checked)} required />
+            <span>{ar.acceptTerms}</span>
+          </label>
+          {message && (
+            <div
+              className={cn(
+                "rounded-xl p-3 text-sm",
+                message.type === "ok" ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/15 text-red-200"
+              )}
+            >
+              <p>{message.text}</p>
+              {message.verifyUrl && (
+                <p className="mt-2 break-all text-xs opacity-80">
+                  رابط تأكيد البريد (تطوير): <a href={message.verifyUrl}>{message.verifyUrl}</a>
+                </p>
+              )}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={loading || !config}
+            className="rounded-xl bg-gradient-to-r from-[#f3c96b] to-[#a77b34] py-3 font-bold text-black disabled:opacity-50"
+          >
+            {loading ? ar.loading : ar.register}
+          </button>
+        </form>
+        <a href="/login" className="mt-4 block text-center text-sm text-[#d6a84f] hover:underline">
+          {ar.backToLogin}
+        </a>
+      </div>
+    </div>
+  );
+}
+
+export function VerifyEmailForm({ token }: { token?: string }) {
+  const [loading, setLoading] = useState(Boolean(token));
+  const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch("/api/auth/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token })
+    })
+      .then(async (r) => {
+        const data = (await r.json()) as { error?: string; message?: string };
+        if (cancelled) return;
+        if (!r.ok) {
+          setMessage({ type: "err", text: data.error ?? ar.error });
+          return;
+        }
+        setMessage({ type: "ok", text: data.message ?? ar.success });
+      })
+      .catch(() => {
+        if (!cancelled) setMessage({ type: "err", text: "تعذر التحقق." });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4">
+      <div className="luxury-panel rounded-[2rem] p-8">
+        <BrandLogo />
+        <h1 className="mt-6 text-xl font-black">{ar.verifyEmailTitle}</h1>
+        {loading && <p className="mt-4 text-sm text-white/60">{ar.loading}</p>}
+        {message && (
+          <p className={cn("mt-4 rounded-xl p-3 text-sm", message.type === "ok" ? "bg-emerald-500/15 text-emerald-200" : "bg-red-500/15 text-red-200")}>
+            {message.text}
+          </p>
+        )}
+        {!token && <p className="mt-4 text-sm text-red-200">رابط التحقق غير صالح.</p>}
+        <a href="/login" className="mt-4 block text-sm text-[#d6a84f]">
+          {ar.backToLogin}
         </a>
       </div>
     </div>
