@@ -1,5 +1,6 @@
 /** QR / barcode URLs and HTML blocks for print documents. */
 
+import { loadCompanyPrintSettings } from "@/lib/company-print-settings";
 import { resolveClientAppOrigin } from "@/lib/runtime-config";
 
 /** Absolute origin for verify links — always prefers the page the user opened (tunnel or production). */
@@ -44,7 +45,10 @@ export function buildPrintCodesBlockHtml(options: {
   qrCaption?: string;
   barcodeCaption?: string;
 }) {
-  const { qrPayload, barcodeValue, qrCaption, barcodeCaption } = options;
+  const settings = loadCompanyPrintSettings();
+  let { qrPayload, barcodeValue, qrCaption, barcodeCaption } = options;
+  if (!settings.showQr) qrPayload = undefined;
+  if (!settings.showBarcode) barcodeValue = undefined;
   if (!qrPayload && !barcodeValue) return "";
 
   const qrPart = qrPayload

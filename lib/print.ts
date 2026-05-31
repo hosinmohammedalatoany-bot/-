@@ -34,15 +34,18 @@ export function absolutizePrintAssetUrls(html: string, origin = getOrigin()): st
 }
 
 export function getPrintStyles() {
-  const margin = loadCompanyPrintSettings().printMarginMm || 12;
+  const company = loadCompanyPrintSettings();
+  const margin = company.printMarginMm || 12;
+  const pageSize = company.paperSize === "Letter" ? "letter" : "A4";
   return `
-  @page { size: A4; margin: ${margin}mm; }
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+  @page { size: ${pageSize}; margin: ${margin}mm; }
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
     padding: 0;
     direction: rtl;
-    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-family: "Cairo", "Segoe UI", Tahoma, Arial, sans-serif;
     color: #111;
     background: #fff !important;
     -webkit-print-color-adjust: exact;
@@ -58,12 +61,61 @@ export function getPrintStyles() {
   h1, h2, h3 { margin: 0 0 8px; color: #111; }
   table { width: 100%; border-collapse: collapse; margin-top: 12px; }
   th, td { border: 1px solid #ddd; padding: 8px; text-align: right; font-size: 13px; color: #111; }
-  th { background: #f5f5f5 !important; }
+  th { background: #f8f4ec !important; color: #222; }
+  tbody tr:nth-child(even) { background: #fafafa; }
+  td.num, th.num { text-align: left; direction: ltr; font-variant-numeric: tabular-nums; }
+  .print-items-table { margin-top: 12px; }
+  .print-summary-table td:first-child { color: #555; width: 38%; }
+  .print-summary-table td:last-child { text-align: left; direction: ltr; }
   .muted { color: #666; font-size: 12px; }
   .totals { margin-top: 16px; text-align: left; }
   .totals div { margin: 4px 0; }
+  .amount-words {
+    margin: 12px 0;
+    padding: 10px 14px;
+    border: 1px solid #e8dcc8;
+    border-radius: 6px;
+    background: #fffbf5;
+    font-weight: 600;
+    line-height: 1.7;
+  }
+  .legal-text { line-height: 1.85; font-size: 13px; color: #222; }
+  .legal-text p { margin: 0 0 10px; }
   .signatures { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-  .sign-line { border-top: 1px solid #333; padding-top: 8px; text-align: center; }
+  .sign-line { border-top: 1px solid #333; padding-top: 8px; text-align: center; min-height: 48px; }
+  .print-signatures-block {
+    margin-top: 28px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .print-stamp-wrap { margin-bottom: 12px; }
+  .print-signatures-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    align-items: flex-end;
+  }
+  .print-sign-cell { text-align: center; min-height: 72px; }
+  .print-sign-label { margin: 6px 0 0; font-size: 12px; font-weight: 700; }
+  .print-sign-role { margin: 2px 0 0; font-size: 11px; color: #666; }
+  .print-sign-manager .print-signature-img {
+    display: block;
+    margin: 0 auto 4px;
+    max-height: 56px;
+    max-width: 140px;
+    object-fit: contain;
+  }
+  .print-report-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    margin: 0 0 16px;
+    padding: 12px 14px;
+    background: #faf8f4;
+    border: 1px solid #e8dcc8;
+    border-radius: 8px;
+    font-size: 12px;
+  }
 
   .print-header { margin-bottom: 8px; }
   .print-header-row {
@@ -87,7 +139,7 @@ export function getPrintStyles() {
   .print-company-name {
     font-size: 20px;
     font-weight: 800;
-    color: #96703a;
+    color: #d6a84f;
     margin: 0 0 4px;
   }
   .print-company-address { margin: 0 0 6px; font-size: 12px; color: #444; }
@@ -112,10 +164,17 @@ export function getPrintStyles() {
   }
   .print-divider {
     border: none;
-    border-top: 2px solid #96703a;
+    border-top: 2px solid #d6a84f;
     margin: 12px 0 16px;
   }
-  .print-body h2 { font-size: 15px; margin-top: 16px; }
+  .print-body h2 {
+    font-size: 15px;
+    margin-top: 18px;
+    margin-bottom: 8px;
+    color: #1a1a1a;
+    border-right: 4px solid #f3c96b;
+    padding-right: 10px;
+  }
   .print-footer {
     margin-top: 28px;
     padding-top: 12px;
@@ -124,15 +183,9 @@ export function getPrintStyles() {
     color: #555;
   }
   .print-footer-note { margin: 0 0 12px; line-height: 1.6; }
-  .print-footer-images {
-    display: flex;
-    gap: 24px;
-    align-items: flex-end;
-    justify-content: flex-start;
-  }
-  .print-stamp, .print-signature {
+  .print-stamp {
     display: block !important;
-    max-height: 64px;
+    max-height: 72px;
     max-width: 120px;
     object-fit: contain;
     visibility: visible !important;
@@ -162,9 +215,10 @@ export function getPrintStyles() {
 
   @media print {
     table { page-break-inside: auto; }
-    tr, thead, tfoot { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
     thead { display: table-header-group; }
     tfoot { display: table-footer-group; }
+    .print-signatures-block, .print-codes-row { page-break-inside: avoid; break-inside: avoid; }
     img { max-width: 100%; }
   }
 `;

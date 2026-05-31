@@ -5,6 +5,8 @@ export const COMPANY_SETTINGS_STORAGE_KEY = "br_company_settings";
 /** Inline fallback when no custom logo is uploaded (always renders in print/PDF). */
 export const DEFAULT_LOGO_PATH = "/brand/logo-transparent.svg";
 
+export type PaperSize = "A4" | "Letter";
+
 export type CompanyPrintSettings = {
   companyName: string;
   address: string;
@@ -14,7 +16,16 @@ export type CompanyPrintSettings = {
   taxNumber: string;
   branchName: string;
   invoiceFooter: string;
+  contractLegalText: string;
   printMarginMm: number;
+  paperSize: PaperSize;
+  managerName: string;
+  managerTitle: string;
+  showQr: boolean;
+  showBarcode: boolean;
+  showStamp: boolean;
+  showManagerSignature: boolean;
+  showClientSignature: boolean;
   /** Base64 data URL (PNG/JPG/SVG) */
   logoDataUrl?: string;
   stampDataUrl?: string;
@@ -29,8 +40,19 @@ export const defaultCompanyPrintSettings: CompanyPrintSettings = {
   commercialRegister: "",
   taxNumber: "",
   branchName: "",
-  invoiceFooter: "الشروط والأحكام — توقيع العميل والمدير وختم الشركة.",
-  printMarginMm: 12
+  invoiceFooter:
+    "يُقر الطرفان بصحة البيانات الواردة أعلاه. تُطبق الشروط والأحكام المعتمدة لدى المعرض. أي نزاع يُحل وفق القوانين العراقية المعمول بها.",
+  contractLegalText:
+    "يلتزم البائع بتسليم المركبة بحالتها المبينة في العقد. يلتزم المشتري بسداد الثمن ورسوم نقل الملكية ما لم يُتفق خلاف ذلك. الضمان حسب سياسة المعرض ما لم يُذكر نص صريح.",
+  printMarginMm: 12,
+  paperSize: "A4",
+  managerName: "المدير العام",
+  managerTitle: "إدارة المعرض",
+  showQr: true,
+  showBarcode: true,
+  showStamp: true,
+  showManagerSignature: true,
+  showClientSignature: true
 };
 
 export function loadCompanyPrintSettings(): CompanyPrintSettings {
@@ -38,7 +60,8 @@ export function loadCompanyPrintSettings(): CompanyPrintSettings {
   try {
     const raw = localStorage.getItem(COMPANY_SETTINGS_STORAGE_KEY);
     if (!raw) return { ...defaultCompanyPrintSettings };
-    return { ...defaultCompanyPrintSettings, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw) as Partial<CompanyPrintSettings>;
+    return { ...defaultCompanyPrintSettings, ...parsed };
   } catch {
     return { ...defaultCompanyPrintSettings };
   }

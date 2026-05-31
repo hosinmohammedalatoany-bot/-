@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { ModulePage } from "@/components/modules/module-page";
@@ -14,8 +14,8 @@ import {
   saveCompanyPrintSettings,
   type CompanyPrintSettings
 } from "@/lib/company-print-settings";
+import { buildPrintDocument, getPrintStyles, printHtml } from "@/lib/print";
 import { wrapPrintDocument } from "@/lib/print-document";
-import { printHtml } from "@/lib/print";
 import { AccountSecurityPanel } from "@/components/modules/account-security-panel";
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
@@ -45,6 +45,18 @@ export function SettingsModule() {
   const [stampPreview, setStampPreview] = useState(() => initial.stampDataUrl ?? "");
   const [signaturePreview, setSignaturePreview] = useState(() => initial.signatureDataUrl ?? "");
   const form = useForm<CompanyPrintSettings>({ defaultValues: initial });
+  const watched = form.watch();
+
+  const settingsPreviewDoc = useMemo(() => {
+    const fragment = wrapPrintDocument(
+      { documentTitle: "معاينة إعدادات الطباعة", documentNumber: "PREVIEW-001", documentDate: new Date() },
+      `<p>هذه معاينة لشكل المستندات بعد حفظ الإعدادات. تظهر الترويسة، الشعار، الختم، وتوقيع المدير حسب خياراتك.</p>
+        <table><tr><th>حجم الورق</th><td>${watched.paperSize ?? "A4"}</td></tr>
+        <tr><th>هامش (مم)</th><td>${watched.printMarginMm ?? 12}</td></tr></table>`,
+      { ...defaultCompanyPrintSettings, ...watched }
+    );
+    return buildPrintDocument("معاينة الطباعة", fragment);
+  }, [watched]);
 
   useEffect(() => {
     const data = readStoredSettings();
@@ -191,10 +203,57 @@ export function SettingsModule() {
           <Field label="هامش الطباعة (مم)">
             <input type="number" className={inputClass} {...form.register("printMarginMm", { valueAsNumber: true })} />
           </Field>
+          <Field label="حجم الورق">
+            <select className={inputClass} {...form.register("paperSize")}>
+              <option value="A4">A4</option>
+              <option value="Letter">Letter</option>
+            </select>
+          </Field>
+          <Field label="اسم المدير (التذييل)">
+            <input className={inputClass} {...form.register("managerName")} />
+          </Field>
+          <Field label="منصب المدير">
+            <input className={inputClass} {...form.register("managerTitle")} />
+          </Field>
           <div className="md:col-span-2">
             <Field label="تذييل الفواتير والعقود">
               <textarea className={inputClass} rows={3} {...form.register("invoiceFooter")} />
             </Field>
+          </div>
+          <div className="md:col-span-2">
+            <Field label="نص قانوني للعقود (فقرات)">
+              <textarea className={inputClass} rows={4} {...form.register("contractLegalText")} />
+            </Field>
+          </div>
+          <div className="md:col-span-2 flex flex-wrap gap-4 text-sm text-white/80">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" {...form.register("showQr")} />
+              إظهار QR
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" {...form.register("showBarcode")} />
+              إظهار الباركود
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" {...form.register("showStamp")} />
+              إظهار الختم
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" {...form.register("showManagerSignature")} />
+              توقيع المدير
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" {...form.register("showClientSignature")} />
+              توقيع العميل
+            </label>
+          </div>
+          <div className="md:col-span-2 rounded-xl border border-white/10 bg-white overflow-hidden">
+            <p className="bg-[#12100c] px-3 py-2 text-xs text-white/55">معاينة فورية (قبل الحفظ)</p>
+            <iframe
+              title="معاينة إعدادات الطباعة"
+              className="h-[420px] w-full border-0 bg-white"
+              srcDoc={settingsPreviewDoc}
+            />
           </div>
           <div className="md:col-span-2 flex flex-wrap gap-2">
             <PrimaryButton type="submit" disabled={loading}>
@@ -202,18 +261,22 @@ export function SettingsModule() {
             </PrimaryButton>
             <SecondaryButton
               onClick={() => {
-                const sample = wrapPrintDocument(
-                  { documentTitle: "معاينة رأس الطباعة", documentNumber: "PREVIEW-001", documentDate: new Date() },
-                  "<p>هذه معاينة لشكل المستندات المطبوعة من النظام.</p>"
-                );
-                printHtml({ title: "معاينة الطباعة", html: sample });
+                printHtml({
+                  title: "معاينة الطباعة",
+                  html: wrapPrintDocument(
+                    { documentTitle: "معاينة رأس الطباعة", documentNumber: "PREVIEW-001", documentDate: new Date() },
+                    "<p>هذه معاينة لشكل المستندات المطبوعة من النظام.</p>",
+                    { ...defaultCompanyPrintSettings, ...form.getValues() }
+                  )
+                });
               }}
             >
-              معاينة الطباعة
+              طباعة المعاينة
             </SecondaryButton>
           </div>
         </form>
       </section>
+      <style>{getPrintStyles()}</style>
 
       <section className="luxury-panel rounded-[2rem] p-5 text-sm text-white/65">
         <h3 className="font-bold text-white">PWA والتطبيقات</h3>

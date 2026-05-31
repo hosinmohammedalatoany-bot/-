@@ -9,7 +9,9 @@ import {
   buildPaymentReceiptPrintHtml,
   buildTableReportHtml
 } from "@/components/print/document-templates";
+import { PrintDocumentActions } from "@/components/print/print-document-actions";
 import { PrintToolbar } from "@/components/print/print-toolbar";
+import { installmentsToScheduleRows } from "@/lib/print-line-items";
 import { ModulePage } from "@/components/modules/module-page";
 import { EmptyState, Field, PrimaryButton, StatusBadge, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
@@ -44,6 +46,21 @@ export function InstallmentsModule() {
     ["القسط", "المبلغ", "المدفوع", "الاستحقاق"],
     overdue.map((i) => [i.id, formatCurrency(i.amount), formatCurrency(i.paidAmount), formatDateTime(i.dueDate)])
   );
+
+  const contractNumber = `INST-${installments[0]?.id ?? "NEW"}`;
+  const totalRemaining = installments.reduce((s, i) => s + (i.amount - i.paidAmount), 0);
+  const initialSchedule = installmentsToScheduleRows(installments);
+
+  function buildContractHtml(rows: ReturnType<typeof installmentsToScheduleRows>) {
+    return buildInstallmentContractPrintHtml({
+      contractNumber,
+      totalAmount: totalRemaining,
+      customerName: "عميل — راجع بيانات العقد في النظام",
+      downPayment: 0,
+      installmentCount: rows.length,
+      scheduleRows: rows
+    });
+  }
 
   return (
     <ModulePage moduleKey="installments">
@@ -105,13 +122,13 @@ export function InstallmentsModule() {
       <section className="luxury-panel rounded-[2rem] p-5">
         <h3 className="font-bold text-white">جدول الأقساط</h3>
         <div className="mb-3 flex flex-wrap gap-2">
-          <PrintToolbar
+          <PrintDocumentActions
             title="عقد تقسيط"
-            printHtmlBody={buildInstallmentContractPrintHtml({
-              contractNumber: `INST-${installments[0]?.id ?? "NEW"}`,
-              totalAmount: installments.reduce((s, i) => s + (i.amount - i.paidAmount), 0),
-              customerName: "عميل — راجع بيانات العقد في النظام"
-            })}
+            getHtml={() => buildContractHtml(initialSchedule)}
+            scheduleEditor={{
+              initialSchedule,
+              buildHtml: (rows) => buildContractHtml(rows)
+            }}
           />
         </div>
         <PrintToolbar

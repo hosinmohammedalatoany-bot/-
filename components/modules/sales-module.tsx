@@ -9,7 +9,9 @@ import {
   buildSaleContractPrintHtml,
   buildTableReportHtml
 } from "@/components/print/document-templates";
+import { PrintDocumentActions } from "@/components/print/print-document-actions";
 import { PrintToolbar } from "@/components/print/print-toolbar";
+import { invoiceToDefaultLineItems } from "@/lib/print-line-items";
 import { SelectCustomer, SelectVehicle } from "@/components/modules/form-selectors";
 import { ModulePage } from "@/components/modules/module-page";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
@@ -57,12 +59,13 @@ export function SalesModule() {
     ])
   );
 
-  function printInvoice(docNo: string, row: (typeof rows)[0]) {
+  function printInvoice(docNo: string, row: (typeof rows)[0], lineItems?: ReturnType<typeof invoiceToDefaultLineItems>) {
     return buildInvoicePrintHtml({
       invoiceNumber: docNo,
       invoice: row.inv,
       vehicle: row.vehicle,
-      customer: row.customer
+      customer: row.customer,
+      lineItems
     });
   }
 
@@ -159,10 +162,14 @@ export function SalesModule() {
                     <td>{row.vehicle ? `${row.vehicle.manufacturer} ${row.vehicle.model}` : "—"}</td>
                     <td>{formatCurrency(row.net)}</td>
                     <td className="space-y-2">
-                      <PrintToolbar
+                      <PrintDocumentActions
                         title={`فاتورة ${row.docNo}`}
-                        printHtmlBody={printInvoice(row.docNo, row)}
+                        getHtml={() => printInvoice(row.docNo, row)}
                         onPrinted={() => log(`طباعة فاتورة ${row.docNo}`)}
+                        lineItemsEditor={{
+                          initialLineItems: invoiceToDefaultLineItems(row.inv, row.vehicle),
+                          buildHtml: (items) => printInvoice(row.docNo, row, items)
+                        }}
                       />
                       <PrintToolbar
                         title={`عقد ${row.docNo}`}
