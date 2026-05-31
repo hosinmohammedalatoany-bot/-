@@ -1,4 +1,4 @@
-# باور لإدارة معارض السيارات
+# Baraa Raed لإدارة معارض السيارات
 
 نظام عربي فاخر ومملوك بالكامل لإدارة معارض السيارات، يدعم العمل بدون إنترنت، ويغطي السيارات والعملاء والمبيعات والتقسيط والمشتريات والمخزون والمحاسبة والموظفين والفروع والتقارير والإعدادات.
 
@@ -17,7 +17,7 @@ This project is not SaaS and contains no subscription or pricing-plan logic.
 - Framer Motion
 - IndexedDB offline persistence
 - PostgreSQL schema in `docs/DATABASE_SCHEMA.sql`
-- Arabic full project prompt in `docs/POWER_FULL_PROJECT_PROMPT_AR.md`
+- Arabic full project prompt in `docs/BARAA_RAED_FULL_PROJECT_PROMPT_AR.md`
 
 ## Run
 

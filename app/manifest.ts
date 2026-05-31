@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "باور لإدارة معارض السيارات",
-    short_name: "باور",
+    name: "Baraa Raed لإدارة معارض السيارات",
+    short_name: "Baraa Raed",
     description: "نظام عربي مملوك بالكامل لإدارة معارض السيارات مع دعم العمل بدون إنترنت.",
     start_url: "/",
     display: "standalone",

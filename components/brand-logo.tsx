@@ -22,8 +22,8 @@ export function BrandLogo({ className, compact = false }: { className?: string; 
       </div>
       {!compact && (
         <div>
-          <p className="gold-text text-xl font-black tracking-[0.08em]">باور</p>
-          <p className="text-xs tracking-[0.08em] text-white/60">POWER لإدارة معارض السيارات</p>
+          <p className="gold-text text-xl font-black tracking-[0.08em]">براء رائد</p>
+          <p className="text-xs tracking-[0.08em] text-white/60">Baraa Raed لإدارة معارض السيارات</p>
         </div>
       )}
     </div>

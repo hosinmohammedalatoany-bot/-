@@ -608,9 +608,9 @@ export function DashboardShell() {
           <header className="luxury-panel overflow-hidden rounded-[2rem] p-6">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm uppercase tracking-[0.4em] text-[#d6a84f]">باور | نظام مملوك بالكامل للمعرض</p>
+                <p className="text-sm uppercase tracking-[0.4em] text-[#d6a84f]">Baraa Raed | نظام مملوك بالكامل للمعرض</p>
                 <h1 className="mt-3 text-4xl font-black tracking-tight text-white md:text-6xl">
-                  باور <span className="gold-text">لإدارة معارض السيارات</span>
+                  براء رائد <span className="gold-text">لإدارة معارض السيارات</span>
                 </h1>
                 <p className="mt-4 max-w-3xl text-base leading-7 text-white/65">
                   نظام عربي احترافي لإدارة السيارات والعملاء والمبيعات والتقسيط والمشتريات والمخزون والمحاسبة
