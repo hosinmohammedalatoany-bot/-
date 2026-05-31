@@ -23,7 +23,7 @@ body {
     radial-gradient(circle at top left, rgb(214 168 79 / 18%), transparent 34rem),
     linear-gradient(135deg, #050505 0%, #10131b 55%, #040404 100%);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Tahoma, Arial, Helvetica, sans-serif;
 }
 
 a {

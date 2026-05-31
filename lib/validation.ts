@@ -1,56 +1,56 @@
 import { z } from "zod";
 
 export const vehicleSchema = z.object({
-  internalNumber: z.string().min(3, "Internal number is required"),
-  vin: z.string().min(11, "VIN must be at least 11 characters").max(17),
-  plateNumber: z.string().min(2),
-  manufacturer: z.string().min(2),
-  model: z.string().min(1),
-  trim: z.string().min(1),
+  internalNumber: z.string().min(3, "الرقم الداخلي مطلوب"),
+  vin: z.string().min(11, "رقم VIN يجب أن يكون 11 حرفاً على الأقل").max(17, "رقم VIN يجب ألا يتجاوز 17 حرفاً"),
+  plateNumber: z.string().min(2, "رقم اللوحة مطلوب"),
+  manufacturer: z.string().min(2, "الشركة المصنعة مطلوبة"),
+  model: z.string().min(1, "الموديل مطلوب"),
+  trim: z.string().min(1, "الفئة مطلوبة"),
   year: z.coerce.number().int().min(1950).max(new Date().getFullYear() + 1),
-  exteriorColor: z.string().min(2),
-  interiorColor: z.string().min(2),
-  fuelType: z.string().min(2),
-  transmission: z.string().min(2),
+  exteriorColor: z.string().min(2, "اللون الخارجي مطلوب"),
+  interiorColor: z.string().min(2, "اللون الداخلي مطلوب"),
+  fuelType: z.string().min(2, "نوع الوقود مطلوب"),
+  transmission: z.string().min(2, "ناقل الحركة مطلوب"),
   mileage: z.coerce.number().int().min(0),
   purchasePrice: z.coerce.number().min(0),
   salePrice: z.coerce.number().min(0),
   minimumSalePrice: z.coerce.number().min(0),
   maintenanceCost: z.coerce.number().min(0),
   transportationCost: z.coerce.number().min(0),
-  branch: z.string().min(1),
-  supplier: z.string().min(1)
+  branch: z.string().min(1, "الفرع مطلوب"),
+  supplier: z.string().min(1, "المورد مطلوب")
 });
 
 export const customerSchema = z.object({
-  name: z.string().min(2),
-  phone: z.string().min(7),
-  email: z.string().email(),
-  address: z.string().min(2),
-  idNumber: z.string().min(2),
+  name: z.string().min(2, "اسم العميل مطلوب"),
+  phone: z.string().min(7, "رقم الهاتف غير صحيح"),
+  email: z.string().email("البريد الإلكتروني غير صحيح"),
+  address: z.string().min(2, "العنوان مطلوب"),
+  idNumber: z.string().min(2, "رقم الهوية مطلوب"),
   notes: z.string().optional()
 });
 
 export const leadSchema = z.object({
-  name: z.string().min(2),
-  phone: z.string().min(7),
+  name: z.string().min(2, "اسم العميل المحتمل مطلوب"),
+  phone: z.string().min(7, "رقم الهاتف غير صحيح"),
   source: z.enum(["WhatsApp", "Facebook", "Instagram", "Walk-In", "Phone Call"]),
-  assignedTo: z.string().min(2),
+  assignedTo: z.string().min(2, "اسم الموظف المسؤول مطلوب"),
   vehicleId: z.string().optional(),
   note: z.string().optional()
 });
 
 export const reservationSchema = z.object({
-  vehicleId: z.string().min(1),
-  customerId: z.string().min(1),
-  employee: z.string().min(2),
+  vehicleId: z.string().min(1, "السيارة مطلوبة"),
+  customerId: z.string().min(1, "العميل مطلوب"),
+  employee: z.string().min(2, "الموظف مطلوب"),
   deposit: z.coerce.number().min(0),
-  expiresAt: z.string().min(1)
+  expiresAt: z.string().min(1, "تاريخ انتهاء الحجز مطلوب")
 });
 
 export const invoiceSchema = z.object({
-  vehicleId: z.string().min(1),
-  customerId: z.string().min(1),
+  vehicleId: z.string().min(1, "السيارة مطلوبة"),
+  customerId: z.string().min(1, "العميل مطلوب"),
   type: z.enum(["cash", "bank-transfer", "installment", "mixed"]),
   total: z.coerce.number().min(1),
   discount: z.coerce.number().min(0),
@@ -58,14 +58,14 @@ export const invoiceSchema = z.object({
 });
 
 export const expenseSchema = z.object({
-  category: z.string().min(2),
+  category: z.string().min(2, "فئة المصروف مطلوبة"),
   amount: z.coerce.number().min(0.01),
-  branch: z.string().min(1),
-  description: z.string().min(2)
+  branch: z.string().min(1, "الفرع مطلوب"),
+  description: z.string().min(2, "الوصف مطلوب")
 });
 
 export const installmentPaymentSchema = z.object({
-  installmentId: z.string().min(1),
+  installmentId: z.string().min(1, "القسط مطلوب"),
   amount: z.coerce.number().min(0.01)
 });
 

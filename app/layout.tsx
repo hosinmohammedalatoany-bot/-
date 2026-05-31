@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Baraa Raed | Car Showroom Management System",
+  title: "براء رائد | نظام إدارة معرض السيارات",
   description:
-    "Owned, offline-first car showroom ERP for vehicle sales, installments, inventory, accounting, printing, and branch operations.",
-  applicationName: "Baraa Raed",
+    "نظام عربي مملوك بالكامل لإدارة معرض السيارات والمبيعات والأقساط والمخزون والمحاسبة والطباعة والعمل بدون إنترنت.",
+  applicationName: "براء رائد",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Baraa Raed"
+    title: "براء رائد"
   },
   icons: {
     icon: "/brand/app-icon.svg",
@@ -31,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr">
+    <html lang="ar" dir="rtl">
       <body>{children}</body>
     </html>
   );

@@ -8,16 +8,16 @@ export default function OfflinePage() {
         <div className="flex justify-center">
           <BrandLogo />
         </div>
-        <h1 className="mt-8 text-3xl font-black">Offline Mode Active</h1>
+        <h1 className="mt-8 text-3xl font-black">وضع عدم الاتصال مفعل</h1>
         <p className="mt-4 text-white/60">
-          Baraa Raed keeps vehicle, customer, invoice, installment, and file operations in the local queue until
-          connectivity returns.
+          يحتفظ نظام براء رائد بعمليات السيارات والعملاء والفواتير والأقساط والملفات داخل الطابور المحلي حتى
+          يعود الاتصال ويتم تنفيذ المزامنة.
         </p>
         <Link
           href="/"
           className="mt-8 inline-flex rounded-xl bg-[#d6a84f] px-5 py-3 font-bold text-black transition hover:bg-[#f3c96b]"
         >
-          Return to Dashboard
+          الرجوع إلى لوحة التحكم
         </Link>
       </section>
     </main>

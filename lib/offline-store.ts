@@ -161,7 +161,7 @@ function queue(operation: QueueOperation, entityLabel: string, entityId: string,
 function audit(action: string, target: string): AuditEvent {
   return {
     id: createId("aud"),
-    actor: "Current User",
+    actor: "المستخدم الحالي",
     action,
     target,
     createdAt: new Date().toISOString()
@@ -182,7 +182,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   addVehicle: (input) => {
     const duplicate = get().vehicles.some((vehicle) => vehicle.vin.toUpperCase() === input.vin.toUpperCase());
     if (duplicate) {
-      const message = `Duplicate VIN blocked: ${input.vin}`;
+      const message = `تم منع تكرار رقم VIN: ${input.vin}`;
       set((state) => ({ conflictMessages: [message, ...state.conflictMessages].slice(0, 6) }));
       return { ok: false, message };
     }
@@ -342,7 +342,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       pendingOperations: [],
       syncStatus: navigator.onLine ? "online" : "offline",
       lastSyncAt: new Date().toISOString(),
-      auditEvents: [audit("Offline queue synchronized", `${state.pendingOperations.length} operations`), ...state.auditEvents]
+      auditEvents: [audit("Offline queue synchronized", `${state.pendingOperations.length} عملية`), ...state.auditEvents]
     }));
     void persistState(snapshot(get()));
   }

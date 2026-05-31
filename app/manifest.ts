@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Baraa Raed Car Showroom Management System",
-    short_name: "Baraa Raed",
-    description: "Offline-first owned vehicle showroom ERP for web, mobile, PWA, and desktop.",
+    name: "براء رائد لإدارة معرض السيارات",
+    short_name: "براء رائد",
+    description: "نظام عربي مملوك بالكامل لإدارة معرض السيارات مع دعم العمل بدون إنترنت.",
     start_url: "/",
     display: "standalone",
     background_color: "#070707",
