@@ -1,0 +1,8 @@
+<svg width="480" height="100" viewBox="0 0 480 100" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="baraa raed print">
+  <path d="M16 62C26 38 44 24 70 18C98 12 122 20 136 38C112 30 88 30 64 38C84 36 104 40 124 50C136 56 144 66 148 76H16Z" fill="#000000"/>
+  <path d="M30 76H130" stroke="#000000" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="48" cy="84" r="10" stroke="#000000" stroke-width="5" fill="#fff"/>
+  <circle cx="116" cy="84" r="10" stroke="#000000" stroke-width="5" fill="#fff"/>
+  <text x="168" y="48" fill="#000000" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="900" letter-spacing="4">BARAA RAED</text>
+  <text x="170" y="72" fill="#333333" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="700" letter-spacing="3">CAR SHOWROOM MANAGEMENT</text>
+</svg>

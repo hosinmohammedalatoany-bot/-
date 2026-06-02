@@ -58,8 +58,12 @@ export function LoginForm({ nextPath }: { nextPath?: string }) {
         setMessage({ type: "err", text: data.error ?? ar.error });
         return;
       }
-      if (remember && data.user) {
-        localStorage.setItem("br_user", JSON.stringify(data.user));
+      if (data.user) {
+        if (remember) {
+          localStorage.setItem("br_user", JSON.stringify(data.user));
+        } else {
+          localStorage.removeItem("br_user");
+        }
       }
       setMessage({ type: "ok", text: "تم تسجيل الدخول بنجاح." });
       if (data.mustChangePassword) {

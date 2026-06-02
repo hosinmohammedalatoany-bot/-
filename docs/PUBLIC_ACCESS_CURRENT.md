@@ -2,24 +2,47 @@
 
 آخر تحديث: 2026-05-31
 
+## ملاحظة مهمة (بيئة Cursor Cloud)
+
+إذا كان التطبيق يعمل على **خادم بعيد** (Cursor Cloud Agent)، فإن `http://127.0.0.1:3000` على جهازك **لن يعمل** — يجب استخدام **نفق Cloudflare** أو تشغيل المشروع محلياً على Windows.
+
+## الرابط النشط
+
 | الاستخدام | الرابط |
 |-----------|--------|
-| **الرابط العام (نشط الآن)** | https://shannon-ran-envelope-feeding.trycloudflare.com |
-| تسجيل الدخول | https://shannon-ran-envelope-feeding.trycloudflare.com/login |
-| **إنشاء حساب** (أول حساب = مدير النظام) | https://shannon-ran-envelope-feeding.trycloudflare.com/register |
-| إعداد بديل | https://shannon-ran-envelope-feeding.trycloudflare.com/setup |
-| لوحة التحكم | https://shannon-ran-envelope-feeding.trycloudflare.com/dashboard/dashboard |
+| **الرابط العام** | انسخ من مخرجات `npm run tunnel` (سطر `*.trycloudflare.com`) |
+| تسجيل الدخول | `{ORIGIN}/login` |
+| التسجيل (أول حساب عبر `/setup` = مدير النظام) | `{ORIGIN}/register` |
+| الإعداد الأول | `{ORIGIN}/setup` |
+| لوحة التحكم | `{ORIGIN}/dashboard/dashboard` |
+| معرض السيارات العام | `{ORIGIN}/showroom` |
 
-## روابط سابقة (منتهية)
+مثال سابق (قد يكون منتهياً): `https://shannon-ran-envelope-feeding.trycloudflare.com` — **تحقق دائماً** من النفق الحالي.
 
-- `https://systematic-highly-www-literacy.trycloudflare.com` → انتهى بعد إيقاف النفق
-- `https://action-evident-bon-amendment.trycloudflare.com` → منتهي
-- `https://restore-heater-church-reservoir.trycloudflare.com` → انتهى بعد إعادة البناء
-- `https://automatic-newer-comparisons-fed.trycloudflare.com` → انتهى / DNS لا يعمل
-- `https://feeds-collectibles-part-more.trycloudflare.com` → `ERR_FAILED`
-- `https://tumor-harvey-legislative-abraham.trycloudflare.com` → خطأ تطبيق (ملفات JS قديمة)
+## تشغيل النفق
 
-## تشغيل محلي
+```bash
+# طرفية 1 — Django
+npm run api:dev
+
+# طرفية 2 — Next
+npm run dev
+
+# طرفية 3 — نفق
+npm run tunnel
+```
+
+في `.env.local` (غير مُرفوع إلى Git):
+
+```env
+NEXT_PUBLIC_APP_URL=https://YOUR-SUBDOMAIN.trycloudflare.com
+NEXT_PUBLIC_API_BASE_URL=https://YOUR-SUBDOMAIN.trycloudflare.com
+DJANGO_API_URL=http://127.0.0.1:8000
+```
+
+`DJANGO_API_URL` للخادم فقط (BFF على نفس الجهاز). المتصفح يستخدم `NEXT_PUBLIC_*` بدون `localhost`.
+
+## تشغيل محلي (نفس الجهاز)
 
 ```bash
 npm run build
@@ -27,11 +50,6 @@ HOSTNAME=0.0.0.0 PORT=3000 npm run start
 # http://127.0.0.1:3000
 ```
 
-## تشغيل مع نفق عام
+## نطاق الإنتاج
 
-```bash
-npm run tunnel
-# أو: PORT=3000 bash scripts/start-tunnel.sh
-```
-
-انسخ الرابط الجديد من مخرجات `cloudflared` (سطر `trycloudflare.com`).
+`app.powerxerp.com` في `production.env.example` **مثال فقط** — لا يعمل حتى تُسجّل DNS وتُوجّهه إلى الخادم.

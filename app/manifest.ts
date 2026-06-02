@@ -16,22 +16,22 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["business", "productivity", "finance"],
     icons: [
       {
-        src: "/brand/app-icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/icon",
+        sizes: "32x32",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: "/apple-icon",
+        sizes: "180x180",
+        type: "image/png",
         purpose: "any"
       },
       {
         src: "/brand/app-icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "maskable"
-      },
-      {
-        src: "/brand/logo-horizontal.svg",
         sizes: "512x512",
         type: "image/svg+xml",
-        purpose: "any"
+        purpose: "maskable"
       }
     ]
   };

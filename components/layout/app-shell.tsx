@@ -10,6 +10,7 @@ import { GlobalSearch } from "@/components/workspace/global-search";
 import { moduleIcons } from "@/components/layout/module-icons";
 import { PrimaryButton, SecondaryButton, StatusBadge } from "@/components/ui/primitives";
 import { canAccessModule, type ClientUser } from "@/lib/client-permissions";
+import { isShippedModule } from "@/lib/shipped-modules";
 import { modules, type ModuleKey } from "@/lib/domain";
 import { moduleTitlesAr, modulePath, ar } from "@/lib/i18n/ar";
 import { isModuleKey } from "@/lib/module-utils";
@@ -99,7 +100,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.refresh();
   }
 
-  const visibleModules = modules.filter((module) => canAccessModule(sessionUser, module.key));
+  const visibleModules = modules.filter(
+    (module) => isShippedModule(module.key) && canAccessModule(sessionUser, module.key)
+  );
 
   const nav = (
     <nav className="space-y-1">

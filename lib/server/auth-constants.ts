@@ -4,7 +4,6 @@ import type { UserRole } from "@/lib/server/db";
 export type RegisterableRole = Exclude<UserRole, "super-admin">;
 
 export const registerableRoles: RegisterableRole[] = [
-  "branch-manager",
   "sales",
   "accountant",
   "inventory",

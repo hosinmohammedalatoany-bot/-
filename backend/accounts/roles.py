@@ -18,8 +18,8 @@ ROLE_CHOICES = [
     (ROLE_READ_ONLY, "مشاهدة فقط"),
 ]
 
+# Self-service registration must not grant branch-manager or admin; admin only via /setup.
 REGISTERABLE_ROLES = {
-    ROLE_BRANCH_MANAGER,
     ROLE_ACCOUNTANT,
     ROLE_SALES,
     ROLE_INVENTORY,

@@ -15,8 +15,8 @@ export const metadata: Metadata = {
     title: "Baraa Raed"
   },
   icons: {
-    icon: "/brand/app-icon.svg",
-    apple: "/brand/app-icon.svg"
+    icon: [{ url: "/icon", type: "image/png" }],
+    apple: [{ url: "/apple-icon", type: "image/png" }]
   },
   manifest: "/manifest.webmanifest"
 };

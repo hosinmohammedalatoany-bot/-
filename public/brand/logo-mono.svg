@@ -1,8 +1,9 @@
-<svg width="520" height="120" viewBox="0 0 520 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M32 70C42 44 60 28 87 21C115 14 141 21 157 41C131 33 106 34 81 42C101 40 121 43 141 53C153 59 161 69 165 81H32Z" fill="#070707"/>
-  <path d="M46 86H150" stroke="#070707" stroke-width="8" stroke-linecap="round"/>
-  <circle cx="64" cy="94" r="12" stroke="#070707" stroke-width="7"/>
-  <circle cx="136" cy="94" r="12" stroke="#070707" stroke-width="7"/>
-  <text x="198" y="56" fill="#070707" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="900" letter-spacing="5">BARAA RAED</text>
-  <text x="201" y="84" fill="#070707" fill-opacity=".72" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="4">CAR SHOWROOM MANAGEMENT</text>
+<svg width="520" height="120" viewBox="0 0 520 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="baraa raed mono">
+  <rect width="520" height="120" fill="#ffffff"/>
+  <path d="M24 70C34 44 52 28 79 21C107 14 133 21 149 41C123 33 98 34 73 42C93 40 113 43 133 53C145 59 153 69 157 81H24Z" fill="#070707"/>
+  <path d="M38 86H142" stroke="#070707" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="56" cy="94" r="12" stroke="#070707" stroke-width="7" fill="#fff"/>
+  <circle cx="128" cy="94" r="12" stroke="#070707" stroke-width="7" fill="#fff"/>
+  <text x="188" y="56" fill="#070707" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="900" letter-spacing="5">BARAA RAED</text>
+  <text x="191" y="84" fill="#070707" fill-opacity="0.65" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" letter-spacing="4">CAR SHOWROOM MANAGEMENT</text>
 </svg>

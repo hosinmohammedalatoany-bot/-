@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { ModuleContent } from "@/components/modules/module-content";
 import { isModuleKey } from "@/lib/module-utils";
+import { isShippedModule } from "@/lib/shipped-modules";
+import type { ModuleKey } from "@/lib/domain";
 
 export default async function DashboardModulePage({
   params
@@ -11,5 +13,8 @@ export default async function DashboardModulePage({
   if (!isModuleKey(module)) {
     notFound();
   }
-  return <ModuleContent moduleKey={module} />;
+  if (!isShippedModule(module as ModuleKey)) {
+    notFound();
+  }
+  return <ModuleContent moduleKey={module as ModuleKey} />;
 }
