@@ -10,6 +10,7 @@ import {
   writeDb
 } from "@/lib/server/db";
 import { jwtCookieHeaders } from "@/lib/server/jwt-session";
+import { rememberPreferenceCookieHeader } from "@/lib/server/remember-cookie";
 import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 const MAX_ATTEMPTS = 5;
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
     for (const header of jwtCookieHeaders(access, refresh, request, rememberMe)) {
       response.headers.append("Set-Cookie", header);
     }
+    response.headers.append("Set-Cookie", rememberPreferenceCookieHeader(rememberMe, request));
     return response;
   }
 
@@ -132,6 +134,7 @@ export async function POST(request: Request) {
       permissions: user.permissions.length ? user.permissions : rolePermissions[user.role]
     }
   });
-  response.headers.set("Set-Cookie", await sessionCookieHeader(token, request, rememberMe));
+  response.headers.append("Set-Cookie", await sessionCookieHeader(token, request, rememberMe));
+  response.headers.append("Set-Cookie", rememberPreferenceCookieHeader(rememberMe, request));
   return response;
 }

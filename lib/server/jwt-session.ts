@@ -1,4 +1,5 @@
 import { djangoFetch, isDjangoAuthEnabled, mapDjangoRoleToClient } from "@/lib/server/django-api";
+import { clearRememberPreferenceCookieHeader } from "@/lib/server/remember-cookie";
 import type { DbUser, UserRole, UserStatus } from "@/lib/server/db";
 
 export const JWT_ACCESS_COOKIE = "br_jwt_access";
@@ -38,7 +39,8 @@ export function clearAuthCookieHeaders(request?: Request): string[] {
   return [
     `${JWT_ACCESS_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
     `${JWT_REFRESH_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
-    `br_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`
+    `br_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`,
+    clearRememberPreferenceCookieHeader(request)
   ];
 }
 

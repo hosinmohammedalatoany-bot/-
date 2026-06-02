@@ -88,4 +88,4 @@
 | 9 | Vehicles | 🔜 (core exists; harden) |
 | 10 | CRM | 🔜 (core exists; harden) |
 
-**Overall phases 1–25:** ~16% complete (foundation + core modules exist; enterprise hardening and phases 11–25 remain).
+**Overall phases 1–25:** ~18% complete (foundation + core modules exist; enterprise hardening and phases 11–25 remain).

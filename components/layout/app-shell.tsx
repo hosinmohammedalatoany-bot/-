@@ -10,6 +10,7 @@ import { GlobalSearch } from "@/components/workspace/global-search";
 import { moduleIcons } from "@/components/layout/module-icons";
 import { PrimaryButton, SecondaryButton, StatusBadge } from "@/components/ui/primitives";
 import { canAccessModule, type ClientUser } from "@/lib/client-permissions";
+import { isRememberMeEnabled } from "@/lib/remember-client";
 import { isShippedModule } from "@/lib/shipped-modules";
 import { modules, type ModuleKey } from "@/lib/domain";
 import { moduleTitlesAr, modulePath, ar } from "@/lib/i18n/ar";
@@ -71,8 +72,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (!res.ok) return;
         const data = (await res.json()) as { user?: ClientUser };
         if (data.user) {
-          localStorage.setItem("br_user", JSON.stringify(data.user));
           setSessionUser(data.user);
+          if (isRememberMeEnabled()) {
+            localStorage.setItem("br_user", JSON.stringify(data.user));
+          }
         }
       })
       .catch(() => undefined);
@@ -96,6 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     localStorage.removeItem("br_user");
+    document.cookie = "br_remember=; Path=/; Max-Age=0; SameSite=Lax";
     router.push("/login");
     router.refresh();
   }

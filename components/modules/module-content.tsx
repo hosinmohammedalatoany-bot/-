@@ -19,6 +19,7 @@ import { SettingsModule } from "@/components/modules/settings-module";
 import { BranchesModule } from "@/components/modules/branches-module";
 import { NotificationsModule } from "@/components/modules/notifications-module";
 import { GenericModule } from "@/components/modules/generic-module";
+import { ModuleAccessGate } from "@/components/auth/module-access-gate";
 
 const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
   dashboard: DashboardModule,
@@ -42,8 +43,9 @@ const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
 
 export function ModuleContent({ moduleKey }: { moduleKey: ModuleKey }) {
   const Dedicated = dedicated[moduleKey];
-  if (Dedicated) {
-    return <Dedicated />;
-  }
-  return <GenericModule moduleKey={moduleKey} />;
+  return (
+    <ModuleAccessGate moduleKey={moduleKey}>
+      {Dedicated ? <Dedicated /> : <GenericModule moduleKey={moduleKey} />}
+    </ModuleAccessGate>
+  );
 }

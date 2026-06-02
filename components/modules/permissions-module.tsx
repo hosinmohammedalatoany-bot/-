@@ -86,7 +86,8 @@ export function PermissionsModule() {
       <section className="luxury-panel rounded-[2rem] p-5">
         <h3 className="font-bold text-white">الأدوار والصلاحيات</h3>
         <p className="mt-1 text-sm text-white/55">
-          صلاحيات الطباعة والتصدير والفروع — تُطبَّق على الجلسة الحالية وتُحفظ محلياً حتى ربط الخادم.
+          صلاحيات الوصول للوحدات والعمليات الحساسة تُفرض من الخادم (Django) حسب دور المستخدم. الخيارات
+          أدناه تفضيلات واجهة محلية للطباعة والتصدير — لا تُجاوز صلاحيات الخادم.
         </p>
         <label className="mt-4 grid gap-1.5 text-sm text-white/70">
           الدور النشط
