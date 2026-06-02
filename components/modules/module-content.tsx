@@ -13,6 +13,7 @@ import { ReservationsModule } from "@/components/modules/reservations-module";
 import { PrintingModule } from "@/components/modules/printing-module";
 import { PermissionsModule } from "@/components/modules/permissions-module";
 import { BackupSyncModule } from "@/components/modules/backup-sync-module";
+import { SystemHealthModule } from "@/components/modules/system-health-module";
 import { ReportsModule } from "@/components/modules/reports-module";
 import { SettingsModule } from "@/components/modules/settings-module";
 import { BranchesModule } from "@/components/modules/branches-module";
@@ -31,6 +32,7 @@ const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
   printing: PrintingModule,
   permissions: PermissionsModule,
   "backup-sync": BackupSyncModule,
+  "system-health": SystemHealthModule,
   reports: ReportsModule,
   settings: SettingsModule,
   branches: BranchesModule

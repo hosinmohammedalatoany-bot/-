@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "installments",
     "accounting",
     "reports",
+    "ops",
 ]
 
 AUTH_USER_MODEL = "accounts.ShowroomUser"

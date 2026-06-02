@@ -20,6 +20,7 @@ const implemented: ModuleKey[] = [
   "printing",
   "permissions",
   "backup-sync",
+  "system-health",
   "reports",
   "settings",
   "branches"

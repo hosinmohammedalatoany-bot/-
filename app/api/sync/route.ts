@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { appendAuditLog, readDb, writeDb } from "@/lib/server/db";
 import { requireUser } from "@/lib/server/api-auth";
 import { dedupeOperations, syncOperationKey } from "@/lib/sync-idempotency";
+import { djangoJson, isDjangoAuthEnabled } from "@/lib/server/django-api";
+import { readJwtAccessFromCookie } from "@/lib/server/jwt-session";
 
 interface SyncRequest {
   deviceId?: string;
@@ -53,9 +55,35 @@ export async function POST(request: NextRequest) {
   });
   await writeDb(db);
 
+  const rejected = operations.length - acceptedIds.length - duplicateIds.length;
+  let syncStatus: "success" | "partial" | "failed" = "success";
+  if (acceptedIds.length === 0 && duplicateIds.length === 0 && operations.length > 0) {
+    syncStatus = "failed";
+  } else if (rejected > 0 || (operations.length > 0 && acceptedIds.length === 0)) {
+    syncStatus = "partial";
+  }
+
+  if (isDjangoAuthEnabled()) {
+    const access = readJwtAccessFromCookie(request.headers.get("cookie"));
+    await djangoJson("/api/ops/sync-logs/", {
+      method: "POST",
+      body: JSON.stringify({
+        device_id: deviceId,
+        status: syncStatus,
+        accepted: acceptedIds.length,
+        duplicates: duplicateIds.length,
+        failed: rejected,
+        remaining: 0,
+        message: `مزامنة — مقبول ${acceptedIds.length}، مكرر ${duplicateIds.length}`,
+        payload_summary: { operationCount: operations.length }
+      }),
+      accessToken: access ?? undefined
+    });
+  }
+
   return NextResponse.json({
     accepted: acceptedIds.length,
-    rejected: operations.length - acceptedIds.length - duplicateIds.length,
+    rejected,
     acceptedIds,
     duplicateIds,
     conflicts: [],
