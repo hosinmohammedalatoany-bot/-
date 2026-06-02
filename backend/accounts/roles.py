@@ -41,6 +41,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "discount.approve",
         "vehicle.delete",
         "installment.adjust",
+        "expense.delete",
     ],
     ROLE_BRANCH_MANAGER: [
         "dashboard",
@@ -75,6 +76,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "accounting",
         "installments",
         "installment.adjust",
+        "expense.delete",
         "reports",
         "print.reports",
         "export.pdf",

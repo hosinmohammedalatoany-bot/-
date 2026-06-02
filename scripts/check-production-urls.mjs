@@ -17,7 +17,8 @@ const ALLOW_FILES = new Set([
   "scripts/test-django-customers.mjs",
   "scripts/test-django-sales.mjs",
   "scripts/test-django-printing.mjs",
-  "scripts/test-django-installments.mjs"
+  "scripts/test-django-installments.mjs",
+  "scripts/test-django-accounting.mjs"
 ]);
 
 const PATTERNS = [
