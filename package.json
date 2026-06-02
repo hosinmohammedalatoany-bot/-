@@ -21,6 +21,7 @@
     "test:django:customers": "node scripts/test-django-customers.mjs",
     "test:django:sales": "node scripts/test-django-sales.mjs",
     "test:django:printing": "node scripts/test-django-printing.mjs",
+    "test:django:installments": "node scripts/test-django-installments.mjs",
     "test:register": "node scripts/test-register-auth.mjs",
     "reset:system": "node scripts/reset-system.mjs",
     "api:check": "cd backend && python3 manage.py check",

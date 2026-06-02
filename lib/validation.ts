@@ -69,6 +69,17 @@ export const installmentPaymentSchema = z.object({
   amount: z.coerce.number().min(0.01)
 });
 
+export const installmentContractSchema = z.object({
+  customerId: z.string().min(1),
+  vehicleId: z.string().min(1),
+  saleInvoiceId: z.string().optional(),
+  totalAmount: z.coerce.number().min(1),
+  downPayment: z.coerce.number().min(0),
+  installmentCount: z.coerce.number().int().min(1).max(120),
+  startDate: z.string().min(1),
+  intervalDays: z.coerce.number().int().min(7).max(365).optional()
+});
+
 export type VehicleInput = z.infer<typeof vehicleSchema>;
 export type CustomerInput = z.infer<typeof customerSchema>;
 export type LeadInput = z.infer<typeof leadSchema>;
@@ -76,3 +87,4 @@ export type ReservationInput = z.infer<typeof reservationSchema>;
 export type InvoiceInput = z.infer<typeof invoiceSchema>;
 export type ExpenseInput = z.infer<typeof expenseSchema>;
 export type InstallmentPaymentInput = z.infer<typeof installmentPaymentSchema>;
+export type InstallmentContractInput = z.infer<typeof installmentContractSchema>;

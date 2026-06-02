@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "vehicles",
     "customers",
     "sales",
+    "installments",
 ]
 
 AUTH_USER_MODEL = "accounts.ShowroomUser"
