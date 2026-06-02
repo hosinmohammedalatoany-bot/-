@@ -19,18 +19,23 @@
 
 مثال سابق (قد يكون منتهياً): `https://shannon-ran-envelope-feeding.trycloudflare.com` — **تحقق دائماً** من النفق الحالي.
 
-## تشغيل النفق
+## تشغيل النفق (إنتاج — مطلوب للهاتف)
+
+لا تستخدم `next dev` خلف Cloudflare (شاشة بيضاء / أخطاء chunks).
 
 ```bash
 # طرفية 1 — Django
 npm run api:dev
 
-# طرفية 2 — Next
-npm run dev
+# طرفية 2 — Next (بعد build)
+rm -rf .next && npm install && npm run build
+HOSTNAME=0.0.0.0 PORT=3000 npm run start
 
-# طرفية 3 — نفق
+# طرفية 3 — نفق (يربط 127.0.0.1:3000)
 npm run tunnel
 ```
+
+أو أمر واحد للنفق: `npm run tunnel` يشغّل الإنتاج على المنفذ 3000 تلقائياً إن لم يكن يعمل.
 
 في `.env.local` (غير مُرفوع إلى Git):
 

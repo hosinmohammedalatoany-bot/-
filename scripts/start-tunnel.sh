@@ -82,10 +82,18 @@ for i in $(seq 1 45); do
     echo "  $URL"
     echo "=============================================="
     echo ""
+    DJANGO_URL="${DJANGO_API_URL:-http://127.0.0.1:8000}"
+    if [ -f "${ROOT}/.env.local" ]; then
+      existing="$(grep -E '^DJANGO_API_URL=' "${ROOT}/.env.local" 2>/dev/null | head -1 || true)"
+      if [ -n "$existing" ]; then
+        DJANGO_URL="${existing#DJANGO_API_URL=}"
+      fi
+    fi
     cat > "${ROOT}/.env.local" <<EOF
 # Cloudflare quick tunnel — origin is also detected from each request (no restart required for links)
 NEXT_PUBLIC_PUBLIC_BASE_URL=$URL
 NEXT_PUBLIC_APP_URL=$URL
+DJANGO_API_URL=$DJANGO_URL
 VERIFY_EMAIL_IN_RESPONSE=true
 EOF
     echo "تم حفظ .env.local (PUBLIC_BASE_URL + APP_URL)."
