@@ -17,6 +17,7 @@ urlpatterns = [
     path("change-password/", views.ChangePasswordView.as_view(), name="change-password"),
     path("verify-email/", views.VerifyEmailView.as_view(), name="verify-email"),
     path("permissions/check/", views.PermissionCheckView.as_view(), name="perm-check"),
+    path("audit-logs/", views.AuditLogListView.as_view(), name="audit-logs"),
     path("sessions/", views.SessionsListView.as_view(), name="sessions"),
     path("users/pending/", views.PendingUsersView.as_view(), name="pending-users"),
 ]

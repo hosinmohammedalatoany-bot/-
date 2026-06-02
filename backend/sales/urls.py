@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     InvoicePublicVerifyView,
+    InvoiceRevisionListView,
     PrintLogListCreateView,
     ReservationDetailView,
     ReservationListCreateView,
@@ -21,6 +22,11 @@ urlpatterns = [
         "invoices/verify/<str:document_number>/",
         InvoicePublicVerifyView.as_view(),
         name="sales-invoice-public-verify",
+    ),
+    path(
+        "invoices/<uuid:invoice_id>/revisions/",
+        InvoiceRevisionListView.as_view(),
+        name="sales-invoice-revisions",
     ),
     path(
         "invoices/<uuid:invoice_id>/",

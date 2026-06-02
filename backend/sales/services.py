@@ -9,6 +9,8 @@ from customers.models import Customer
 from vehicles.models import Vehicle, VehicleStatus
 
 from .models import (
+    InvoiceRevisionLog,
+    InvoiceRevisionType,
     InvoiceStatus,
     PaymentType,
     PrintLog,
@@ -40,6 +42,36 @@ def _next_document_number() -> str:
 def _can_override_vehicle_lock(user) -> bool:
     return user.role == "admin" or user.is_superuser or has_permission(
         user.role, user.extra_permissions, "sale.override_lock"
+    )
+
+
+def _invoice_snapshot(invoice: SaleInvoice) -> dict:
+    return {
+        "document_number": invoice.document_number,
+        "status": invoice.status,
+        "payment_type": invoice.payment_type,
+        "total": str(invoice.total),
+        "discount": str(invoice.discount),
+        "tax": str(invoice.tax),
+        "net_total": str(invoice.net_total),
+        "vehicle_id": str(invoice.vehicle_id),
+        "customer_id": str(invoice.customer_id),
+    }
+
+
+def record_invoice_revision(
+    *,
+    invoice: SaleInvoice,
+    user,
+    revision_type: str,
+    note: str = "",
+) -> InvoiceRevisionLog:
+    return InvoiceRevisionLog.objects.create(
+        invoice=invoice,
+        revision_type=revision_type,
+        actor=user,
+        snapshot=_invoice_snapshot(invoice),
+        note=note,
     )
 
 
@@ -216,6 +248,12 @@ def create_sale_invoice(
         target_id=str(invoice.id),
         details=f"بيع {vehicle.internal_number} — {invoice.document_number}",
     )
+    record_invoice_revision(
+        invoice=invoice,
+        user=user,
+        revision_type=InvoiceRevisionType.ISSUED,
+        note="إصدار فاتورة بيع",
+    )
     return invoice
 
 
@@ -231,6 +269,12 @@ def archive_sale_invoice(*, user, invoice: SaleInvoice) -> SaleInvoice:
     invoice.status = InvoiceStatus.CANCELLED
     invoice.is_archived = True
     invoice.save(update_fields=["status", "is_archived", "updated_at"])
+    record_invoice_revision(
+        invoice=invoice,
+        user=user,
+        revision_type=InvoiceRevisionType.ARCHIVED,
+        note="أرشفة فاتورة",
+    )
     log_audit(
         action="sale.archive",
         actor=user,

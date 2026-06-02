@@ -10,6 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .models import (
+    AuditLog,
     EmailVerificationToken,
     PasswordResetToken,
     ShowroomUser,
@@ -347,6 +348,47 @@ class PermissionCheckView(APIView):
         elif module:
             allowed = has_module_access(user.role, user.extra_permissions, module)
         return Response({"allowed": allowed})
+
+
+def _user_can_view_audit(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if user.role == ROLE_ADMIN or user.is_superuser:
+        return True
+    return has_permission(user.role, user.extra_permissions, "audit.view")
+
+
+class AuditLogListView(APIView):
+    permission_classes = [IsAuthenticatedActive]
+
+    def get(self, request):
+        if not _user_can_view_audit(request.user):
+            return Response({"detail": "غير مصرح."}, status=403)
+        limit = min(int(request.query_params.get("limit", 200)), 500)
+        action_filter = (request.query_params.get("action") or "").strip()
+        qs = AuditLog.objects.select_related("actor").all()
+        if action_filter:
+            qs = qs.filter(action__icontains=action_filter)
+        rows = qs.order_by("-created_at")[:limit]
+        return Response(
+            {
+                "logs": [
+                    {
+                        "id": str(row.id),
+                        "action": row.action,
+                        "actor_id": str(row.actor_id) if row.actor_id else None,
+                        "actor_email": row.actor_email
+                        or (row.actor.email if row.actor else ""),
+                        "actor_name": row.actor.full_display_name if row.actor else "",
+                        "target_id": row.target_id,
+                        "target_email": row.target_email,
+                        "details": row.details,
+                        "created_at": row.created_at.isoformat(),
+                    }
+                    for row in rows
+                ]
+            }
+        )
 
 
 class SessionsListView(APIView):

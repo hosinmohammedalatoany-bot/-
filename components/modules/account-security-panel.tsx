@@ -105,6 +105,11 @@ export function AccountSecurityPanel() {
         </dl>
       )}
 
+      <p className="mt-4 text-xs text-white/45">
+        بعد تغيير كلمة المرور يُنهى تلقائياً تسجيل الدخول على الأجهزة الأخرى. لإدارة
+        الجلسات وسجل التدقيق، راجع القسم أدناه.
+      </p>
+
       <form className="mt-6 grid max-w-lg gap-3" onSubmit={onChangePassword}>
         <h4 className="text-sm font-semibold text-[#f3c96b]">تغيير كلمة المرور</h4>
         <Field label="كلمة المرور الحالية">

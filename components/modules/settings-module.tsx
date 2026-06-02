@@ -17,6 +17,7 @@ import {
 import { buildPrintDocument, getPrintStyles, printHtml } from "@/lib/print";
 import { wrapPrintDocument } from "@/lib/print-document";
 import { AccountSecurityPanel } from "@/components/modules/account-security-panel";
+import { SecurityAuditPanel } from "@/components/modules/security-audit-panel";
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
@@ -119,6 +120,7 @@ export function SettingsModule() {
   return (
     <ModulePage moduleKey="settings">
       <AccountSecurityPanel />
+      <SecurityAuditPanel />
 
       <section className="luxury-panel rounded-[2rem] p-5">
         <h3 className="font-bold text-white">بيانات المعرض والطباعة</h3>

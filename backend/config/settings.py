@@ -160,6 +160,9 @@ if DEBUG:
         "true",
         "yes",
     )
+else:
+    # Production: set CORS_ALLOWED_ORIGINS to your deployed frontend URL(s) only.
+    CORS_ALLOW_ALL_ORIGINS = False
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

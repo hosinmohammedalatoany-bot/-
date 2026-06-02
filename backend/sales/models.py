@@ -148,6 +148,41 @@ class PrintDocumentType(models.TextChoices):
     REPORT = "report", "تقرير"
 
 
+class InvoiceRevisionType(models.TextChoices):
+    ISSUED = "issued", "إصدار"
+    ARCHIVED = "archived", "أرشفة/إلغاء"
+    REVISED = "revised", "تعديل"
+
+
+class InvoiceRevisionLog(models.Model):
+    """Structured history of invoice lifecycle for compliance."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    invoice = models.ForeignKey(
+        SaleInvoice,
+        on_delete=models.CASCADE,
+        related_name="revision_logs",
+    )
+    revision_type = models.CharField(
+        max_length=20,
+        choices=InvoiceRevisionType.choices,
+        db_index=True,
+    )
+    actor = models.ForeignKey(
+        "accounts.ShowroomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="invoice_revisions",
+    )
+    snapshot = models.JSONField(default=dict, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class PrintLog(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document_type = models.CharField(max_length=20, choices=PrintDocumentType.choices, db_index=True)

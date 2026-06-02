@@ -3,9 +3,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAuthenticatedActive, require_module
-from accounts.roles import has_permission
 
-from .models import InvoiceStatus, PrintLog, Reservation, SaleInvoice
+from accounts.roles import has_module_access, has_permission
+
+from .models import InvoiceRevisionLog, InvoiceStatus, PrintLog, Reservation, SaleInvoice
 from .serializers import (
     PrintLogCreateSerializer,
     PrintLogSerializer,
@@ -165,6 +166,49 @@ class SaleInvoiceListCreateView(APIView):
         return Response(
             SaleInvoiceListSerializer(invoice).data,
             status=status.HTTP_201_CREATED,
+        )
+
+
+def _user_can_view_invoice_revisions(user) -> bool:
+    if not user or not user.is_authenticated:
+        return False
+    if user.role == "admin" or user.is_superuser:
+        return True
+    if has_permission(user.role, user.extra_permissions, "audit.view"):
+        return True
+    return has_module_access(user.role, user.extra_permissions, "sales")
+
+
+class InvoiceRevisionListView(APIView):
+    permission_classes = [IsAuthenticatedActive]
+
+    def get(self, request, invoice_id):
+        if not _user_can_view_invoice_revisions(request.user):
+            return Response({"detail": "غير مصرح."}, status=403)
+        try:
+            invoice = SaleInvoice.objects.get(pk=invoice_id)
+        except SaleInvoice.DoesNotExist:
+            return Response({"detail": "الفاتورة غير موجودة."}, status=404)
+        rows = InvoiceRevisionLog.objects.filter(invoice=invoice).select_related("actor")[
+            :100
+        ]
+        return Response(
+            {
+                "invoice_id": str(invoice.id),
+                "document_number": invoice.document_number,
+                "revisions": [
+                    {
+                        "id": str(r.id),
+                        "revision_type": r.revision_type,
+                        "actor_name": r.actor.full_display_name if r.actor else "",
+                        "actor_email": r.actor.email if r.actor else "",
+                        "snapshot": r.snapshot,
+                        "note": r.note,
+                        "created_at": r.created_at.isoformat(),
+                    }
+                    for r in rows
+                ],
+            }
         )
 
 

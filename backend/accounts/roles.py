@@ -31,6 +31,7 @@ ROLE_LABELS_AR = dict(ROLE_CHOICES)
 ROLE_PERMISSIONS: dict[str, list[str]] = {
     ROLE_ADMIN: [
         "*",
+        "audit.view",
         "print.invoices",
         "print.contracts",
         "print.reports",
@@ -45,6 +46,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     ],
     ROLE_BRANCH_MANAGER: [
         "dashboard",
+        "audit.view",
         "cars",
         "customers",
         "leads",
@@ -73,6 +75,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
     ],
     ROLE_ACCOUNTANT: [
         "dashboard",
+        "audit.view",
         "accounting",
         "installments",
         "installment.adjust",
