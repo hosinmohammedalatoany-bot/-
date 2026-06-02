@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ar } from "@/lib/i18n/ar";
 import { useActionLog } from "@/hooks/use-action-log";
@@ -12,8 +12,15 @@ import { ModulePage } from "@/components/modules/module-page";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
 import { useShowroomStore } from "@/lib/offline-store";
+import { reservationFromApi } from "@/lib/sales-map";
+import { vehicleFromApi } from "@/lib/vehicles-map";
 import { reservationSchema, type ReservationInput } from "@/lib/validation";
+import type { Reservation, Vehicle } from "@/lib/domain";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+
+const apiReservationsEnabled = Boolean(
+  typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
+);
 
 const emptyReservation: ReservationInput = {
   vehicleId: "",
@@ -24,14 +31,57 @@ const emptyReservation: ReservationInput = {
 };
 
 export function ReservationsModule() {
-  const vehicles = useShowroomStore((s) => s.vehicles);
-  const customers = useShowroomStore((s) => s.customers);
-  const reservations = useShowroomStore((s) => s.reservations);
-  const addReservation = useShowroomStore((s) => s.addReservation);
-  const deleteReservation = useShowroomStore((s) => s.deleteReservation);
+  const storeVehicles = useShowroomStore((s) => s.vehicles);
+  const storeCustomers = useShowroomStore((s) => s.customers);
+  const storeReservations = useShowroomStore((s) => s.reservations);
+  const addReservationStore = useShowroomStore((s) => s.addReservation);
+  const deleteReservationStore = useShowroomStore((s) => s.deleteReservation);
   const { log, items } = useActionLog();
+  const [apiReservations, setApiReservations] = useState<Reservation[] | null>(null);
+  const [apiVehicles, setApiVehicles] = useState<Vehicle[] | null>(null);
+  const [fetching, setFetching] = useState(apiReservationsEnabled);
   const [loading, setLoading] = useState(false);
   const form = useForm<ReservationInput>({ defaultValues: emptyReservation });
+
+  const vehicles = apiReservationsEnabled && apiVehicles !== null ? apiVehicles : storeVehicles;
+  const customers = storeCustomers;
+  const reservations =
+    apiReservationsEnabled && apiReservations !== null ? apiReservations : storeReservations;
+
+  const loadData = useCallback(async () => {
+    if (!apiReservationsEnabled) return;
+    setFetching(true);
+    try {
+      const [resRes, vehRes] = await Promise.all([
+        fetch("/api/reservations?active=1", { credentials: "include" }),
+        fetch("/api/vehicles", { credentials: "include" })
+      ]);
+      const resData = (await resRes.json()) as { reservations?: unknown[]; error?: string };
+      const vehData = (await vehRes.json()) as { vehicles?: unknown[]; error?: string };
+      if (!resRes.ok) throw new Error(resData.error ?? "تعذر تحميل الحجوزات");
+      if (!vehRes.ok) throw new Error(vehData.error ?? "تعذر تحميل السيارات");
+      setApiReservations(
+        (resData.reservations ?? []).map((row) =>
+          reservationFromApi(row as Record<string, unknown>)
+        )
+      );
+      setApiVehicles(
+        (vehData.vehicles ?? []).map((row) =>
+          vehicleFromApi(row as Record<string, unknown>)
+        )
+      );
+    } catch (e) {
+      log(e instanceof Error ? e.message : "تعذر تحميل الحجوزات");
+    } finally {
+      setFetching(false);
+    }
+  }, [log]);
+
+  useEffect(() => {
+    if (!apiReservationsEnabled) return;
+    const timer = window.setTimeout(() => void loadData(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadData]);
 
   const reportHtml = buildTableReportHtml(
     "تقرير الحجوزات",
@@ -42,6 +92,8 @@ export function ReservationsModule() {
       return [r.id, v?.internalNumber ?? "—", c?.name ?? "—", formatCurrency(r.deposit), formatDateTime(r.expiresAt)];
     })
   );
+
+  const bookableVehicles = vehicles.filter((v) => v.status !== "sold");
 
   return (
     <ModulePage moduleKey="reservations">
@@ -63,13 +115,31 @@ export function ReservationsModule() {
               setLoading(false);
               return;
             }
-            const reservation = addReservation(parsed.data);
-            log(`تم إنشاء الحجز ${reservation.id} وتحديث حالة السيارة إلى محجوزة.`);
-            form.reset(emptyReservation);
+            if (apiReservationsEnabled) {
+              try {
+                const res = await fetch("/api/reservations", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(parsed.data)
+                });
+                const body = (await res.json()) as { error?: string };
+                if (!res.ok) throw new Error(body.error ?? "تعذر إنشاء الحجز");
+                log(`تم إنشاء الحجز وتحديث حالة السيارة إلى محجوزة.`);
+                form.reset(emptyReservation);
+                await loadData();
+              } catch (e) {
+                log(e instanceof Error ? e.message : "تعذر إنشاء الحجز");
+              }
+            } else {
+              const reservation = addReservationStore(parsed.data);
+              log(`تم إنشاء الحجز ${reservation.id} وتحديث حالة السيارة إلى محجوزة.`);
+              form.reset(emptyReservation);
+            }
             setLoading(false);
           })}
         >
-          <SelectVehicle register={form.register("vehicleId")} vehicles={vehicles.filter((v) => v.status !== "sold")} />
+          <SelectVehicle register={form.register("vehicleId")} vehicles={bookableVehicles} />
           <SelectCustomer register={form.register("customerId")} customers={customers} />
           <Field label="الموظف">
             <input className={inputClass} {...form.register("employee")} />
@@ -81,9 +151,7 @@ export function ReservationsModule() {
             <input type="datetime-local" className={inputClass} {...form.register("expiresAt")} />
           </Field>
           <div className="md:col-span-2">
-            <PrimaryButton type="submit" disabled={loading}>
-              {loading ? ar.loading : "إنشاء الحجز"}
-            </PrimaryButton>
+            <PrimaryButton disabled={loading}>{loading ? ar.loading : "إنشاء الحجز"}</PrimaryButton>
           </div>
         </form>
       </section>
@@ -92,7 +160,9 @@ export function ReservationsModule() {
         <h3 className="font-bold text-white">الحجوزات النشطة</h3>
         <PrintToolbar title="حجوزات" printHtmlBody={reportHtml} />
         <div className="mt-4 overflow-x-auto">
-          {reservations.length === 0 ? (
+          {fetching ? (
+            <p className="text-sm text-white/50">{ar.loading}</p>
+          ) : reservations.length === 0 ? (
             <EmptyState title={ar.noData} />
           ) : (
             <table className="w-full min-w-[640px] text-sm">
@@ -112,7 +182,7 @@ export function ReservationsModule() {
                   const c = customers.find((x) => x.id === r.customerId);
                   return (
                     <tr key={r.id}>
-                      <td className="py-3">{r.id}</td>
+                      <td className="py-3">{r.id.slice(0, 8)}…</td>
                       <td>{v?.internalNumber ?? "—"}</td>
                       <td>{c?.name ?? "—"}</td>
                       <td>{formatCurrency(r.deposit)}</td>
@@ -123,7 +193,7 @@ export function ReservationsModule() {
                             title={`إيصال حجز ${r.id}`}
                             getHtml={() =>
                               buildPaymentReceiptPrintHtml({
-                                receiptNumber: `RES-${r.id}`,
+                                receiptNumber: `RES-${r.id.slice(0, 8)}`,
                                 amount: r.deposit,
                                 payerName: c?.name,
                                 reference: r.id,
@@ -132,10 +202,26 @@ export function ReservationsModule() {
                             }
                           />
                           <DeleteRowButton
-                            onConfirm={() => {
-                              const result = deleteReservation(r.id);
-                              if (!result.ok) window.alert(result.message);
-                              else log(`حذف الحجز ${r.id}`);
+                            onConfirm={async () => {
+                              if (apiReservationsEnabled) {
+                                const res = await fetch(`/api/reservations/${r.id}`, {
+                                  method: "DELETE",
+                                  credentials: "include"
+                                });
+                                const body = (await res.json().catch(() => ({}))) as {
+                                  error?: string;
+                                };
+                                if (!res.ok) {
+                                  window.alert(body.error ?? "تعذر إلغاء الحجز");
+                                  return;
+                                }
+                                log(`أُلغي الحجز ${r.id}`);
+                                await loadData();
+                              } else {
+                                const result = deleteReservationStore(r.id);
+                                if (!result.ok) window.alert(result.message);
+                                else log(`حذف الحجز ${r.id}`);
+                              }
                             }}
                           />
                         </div>

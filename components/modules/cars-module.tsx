@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { QrCode } from "lucide-react";
 import { ar } from "@/lib/i18n/ar";
@@ -14,6 +14,11 @@ import { vehicleSchema, type VehicleInput } from "@/lib/validation";
 import { vehicleVerifyUrl } from "@/lib/document-codes";
 import { formatCurrency } from "@/lib/utils";
 import type { Vehicle } from "@/lib/domain";
+import { vehicleFromApi } from "@/lib/vehicles-map";
+
+const apiVehiclesEnabled = Boolean(
+  typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
+);
 
 const emptyVehicle: VehicleInput = {
   internalNumber: "",
@@ -68,15 +73,48 @@ const statusLabels: Record<Vehicle["status"], string> = {
 };
 
 export function CarsModule() {
-  const vehicles = useShowroomStore((s) => s.vehicles);
-  const addVehicle = useShowroomStore((s) => s.addVehicle);
-  const updateVehicleStatus = useShowroomStore((s) => s.updateVehicleStatus);
-  const deleteVehicle = useShowroomStore((s) => s.deleteVehicle);
+  const storeVehicles = useShowroomStore((s) => s.vehicles);
+  const addVehicleStore = useShowroomStore((s) => s.addVehicle);
+  const updateVehicleStatusStore = useShowroomStore((s) => s.updateVehicleStatus);
+  const deleteVehicleStore = useShowroomStore((s) => s.deleteVehicle);
   const { log, items } = useActionLog();
+  const [apiVehicles, setApiVehicles] = useState<Vehicle[] | null>(null);
+  const [fetching, setFetching] = useState(apiVehiclesEnabled);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const form = useForm<VehicleInput>({ defaultValues: emptyVehicle });
   const [loading, setLoading] = useState(false);
+
+  const vehicles = apiVehiclesEnabled && apiVehicles !== null ? apiVehicles : storeVehicles;
+
+  const loadVehicles = useCallback(async () => {
+    if (!apiVehiclesEnabled) return;
+    setFetching(true);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") {
+        const apiStatus = statusFilter === "not-ready" ? "not_ready" : statusFilter;
+        params.set("status", apiStatus);
+      }
+      if (search.trim()) params.set("q", search.trim());
+      const res = await fetch(`/api/vehicles?${params.toString()}`, { credentials: "include" });
+      const data = (await res.json()) as { vehicles?: unknown[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "تعذر تحميل السيارات");
+      setApiVehicles(
+        (data.vehicles ?? []).map((row) => vehicleFromApi(row as Record<string, unknown>))
+      );
+    } catch (e) {
+      log(e instanceof Error ? e.message : "تعذر تحميل السيارات");
+    } finally {
+      setFetching(false);
+    }
+  }, [search, statusFilter, log]);
+
+  useEffect(() => {
+    if (!apiVehiclesEnabled) return;
+    const timer = window.setTimeout(() => void loadVehicles(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadVehicles]);
 
   const filtered = useMemo(() => {
     return vehicles.filter((v) => {
@@ -113,7 +151,26 @@ export function CarsModule() {
       setLoading(false);
       return;
     }
-    const result = addVehicle(parsed.data);
+    if (apiVehiclesEnabled) {
+      try {
+        const res = await fetch("/api/vehicles", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(parsed.data)
+        });
+        const body = (await res.json()) as { vehicle?: Vehicle; error?: string };
+        if (!res.ok) throw new Error(body.error ?? "تعذر حفظ السيارة");
+        log(`تمت إضافة السيارة ${body.vehicle?.internalNumber ?? ""}`);
+        form.reset(emptyVehicle);
+        await loadVehicles();
+      } catch (e) {
+        log(e instanceof Error ? e.message : "تعذر حفظ السيارة");
+      }
+      setLoading(false);
+      return;
+    }
+    const result = addVehicleStore(parsed.data);
     if (result.ok) {
       log(`تمت إضافة السيارة ${result.vehicle.internalNumber}`);
       form.reset(emptyVehicle);
@@ -121,6 +178,52 @@ export function CarsModule() {
       log(result.message);
     }
     setLoading(false);
+  }
+
+  async function changeStatus(vehicleId: string, status: Vehicle["status"], label: string) {
+    if (apiVehiclesEnabled) {
+      try {
+        const res = await fetch(`/api/vehicles/${vehicleId}/status`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status })
+        });
+        const body = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(body.error ?? "تعذر تحديث الحالة");
+        log(`تم تحديث حالة ${label}`);
+        await loadVehicles();
+      } catch (e) {
+        log(e instanceof Error ? e.message : "تعذر تحديث الحالة");
+      }
+      return;
+    }
+    updateVehicleStatusStore(vehicleId, status);
+    log(`تم تحديث الحالة إلى ${label}`);
+  }
+
+  async function removeVehicle(vehicle: Vehicle) {
+    if (apiVehiclesEnabled) {
+      try {
+        const res = await fetch(`/api/vehicles/${vehicle.id}`, {
+          method: "DELETE",
+          credentials: "include"
+        });
+        const body = (await res.json()) as { error?: string };
+        if (!res.ok) throw new Error(body.error ?? "تعذر أرشفة السيارة");
+        log(`أُرشفت السيارة ${vehicle.internalNumber}`);
+        await loadVehicles();
+      } catch (e) {
+        log(e instanceof Error ? e.message : "تعذر أرشفة السيارة");
+      }
+      return;
+    }
+    const result = deleteVehicleStore(vehicle.id);
+    if (!result.ok) {
+      window.alert(result.message);
+      return;
+    }
+    log(`حذف السيارة ${vehicle.internalNumber}`);
   }
 
   return (
@@ -187,9 +290,16 @@ export function CarsModule() {
           >
             {ar.resetFilter}
           </SecondaryButton>
+          {apiVehiclesEnabled && (
+            <SecondaryButton onClick={() => void loadVehicles()} disabled={fetching}>
+              {fetching ? ar.loading : "تحديث"}
+            </SecondaryButton>
+          )}
         </div>
 
-        {filtered.length === 0 ? (
+        {fetching && apiVehiclesEnabled ? (
+          <p className="mt-6 text-sm text-white/50">{ar.loading}</p>
+        ) : filtered.length === 0 ? (
           <div className="mt-6">
             <EmptyState title={ar.noData} hint="أضف سيارة جديدة من النموذج أعلاه" />
           </div>
@@ -232,21 +342,16 @@ export function CarsModule() {
                           <QrCode className="h-3 w-3" />
                         </SecondaryButton>
                         {v.status !== "sold" && (
-                          <SecondaryButton onClick={() => updateVehicleStatus(v.id, "reserved")}>حجز</SecondaryButton>
+                          <SecondaryButton onClick={() => void changeStatus(v.id, "reserved", "محجوزة")}>
+                            حجز
+                          </SecondaryButton>
                         )}
                         {v.status !== "sold" && (
-                          <SecondaryButton onClick={() => updateVehicleStatus(v.id, "available")}>متوفرة</SecondaryButton>
+                          <SecondaryButton onClick={() => void changeStatus(v.id, "available", "متوفرة")}>
+                            متوفرة
+                          </SecondaryButton>
                         )}
-                        <DeleteRowButton
-                          onConfirm={() => {
-                            const result = deleteVehicle(v.id);
-                            if (!result.ok) {
-                              window.alert(result.message);
-                              return;
-                            }
-                            log(`حذف السيارة ${v.internalNumber}`);
-                          }}
-                        />
+                        <DeleteRowButton onConfirm={() => void removeVehicle(v)} />
                       </div>
                     </td>
                   </tr>

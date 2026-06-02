@@ -40,6 +40,7 @@ function readStoredSettings(): CompanyPrintSettings {
 export function SettingsModule() {
   const { log, items } = useActionLog();
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(true);
   const initial = readStoredSettings();
   const [logoPreview, setLogoPreview] = useState(() => initial.logoDataUrl ?? resolvePrintLogoUrl(initial));
   const [stampPreview, setStampPreview] = useState(() => initial.stampDataUrl ?? "");
@@ -59,8 +60,34 @@ export function SettingsModule() {
   }, [watched]);
 
   useEffect(() => {
-    const data = readStoredSettings();
-    form.reset(data);
+    let cancelled = false;
+    (async () => {
+      setSyncing(true);
+      try {
+        const res = await fetch("/api/organization/company", { credentials: "include" });
+        if (res.ok) {
+          const payload = (await res.json()) as { settings?: CompanyPrintSettings };
+          if (payload.settings && !cancelled) {
+            form.reset(payload.settings);
+            setLogoPreview(payload.settings.logoDataUrl ?? resolvePrintLogoUrl(payload.settings));
+            setStampPreview(payload.settings.stampDataUrl ?? "");
+            setSignaturePreview(payload.settings.signatureDataUrl ?? "");
+            saveCompanyPrintSettings(payload.settings);
+          }
+        } else {
+          const data = readStoredSettings();
+          if (!cancelled) form.reset(data);
+        }
+      } catch {
+        const data = readStoredSettings();
+        if (!cancelled) form.reset(data);
+      } finally {
+        if (!cancelled) setSyncing(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [form]);
 
   async function onPickImage(
@@ -171,11 +198,31 @@ export function SettingsModule() {
 
         <form
           className="mt-6 grid gap-3 md:grid-cols-2"
-          onSubmit={form.handleSubmit((data) => {
+          onSubmit={form.handleSubmit(async (data) => {
             setLoading(true);
-            saveCompanyPrintSettings(data);
-            setLogoPreview(data.logoDataUrl ?? resolvePrintLogoUrl(data));
-            log("تم حفظ بيانات المعرض والطباعة.");
+            try {
+              const res = await fetch("/api/organization/company", {
+                method: "PATCH",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+              });
+              const payload = await res.json();
+              if (!res.ok) {
+                log(typeof payload.error === "string" ? payload.error : ar.error);
+                setLoading(false);
+                return;
+              }
+              const saved = (payload.settings ?? data) as CompanyPrintSettings;
+              saveCompanyPrintSettings(saved);
+              form.reset(saved);
+              setLogoPreview(saved.logoDataUrl ?? resolvePrintLogoUrl(saved));
+              log("تم حفظ بيانات المعرض والطباعة على الخادم.");
+            } catch {
+              saveCompanyPrintSettings(data);
+              setLogoPreview(data.logoDataUrl ?? resolvePrintLogoUrl(data));
+              log("تم الحفظ محلياً (تعذر الاتصال بالخادم).");
+            }
             setLoading(false);
           })}
         >
@@ -199,6 +246,9 @@ export function SettingsModule() {
           </Field>
           <Field label="الرقم الضريبي">
             <input className={inputClass} {...form.register("taxNumber")} />
+          </Field>
+          <Field label="العملة">
+            <input className={inputClass} {...form.register("currency")} placeholder="IQD" />
           </Field>
           <Field label="هامش الطباعة (مم)">
             <input type="number" className={inputClass} {...form.register("printMarginMm", { valueAsNumber: true })} />
@@ -256,8 +306,8 @@ export function SettingsModule() {
             />
           </div>
           <div className="md:col-span-2 flex flex-wrap gap-2">
-            <PrimaryButton type="submit" disabled={loading}>
-              {loading ? ar.loading : "حفظ الإعدادات"}
+            <PrimaryButton type="submit" disabled={loading || syncing}>
+              {loading ? ar.loading : syncing ? "جاري التحميل…" : "حفظ الإعدادات"}
             </PrimaryButton>
             <SecondaryButton
               onClick={() => {

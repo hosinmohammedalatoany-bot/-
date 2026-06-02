@@ -100,6 +100,13 @@ export interface Customer {
   createdAt: string;
 }
 
+export type LeadPipelineStatus =
+  | "interested"
+  | "contact"
+  | "reserved"
+  | "purchased"
+  | "cancelled";
+
 export interface Lead {
   id: string;
   name: string;
@@ -107,7 +114,7 @@ export interface Lead {
   phone: string;
   assignedTo: string;
   vehicleId?: string;
-  status: Extract<EntityStatus, "new" | "contacted" | "interested" | "converted">;
+  status: LeadPipelineStatus;
   nextFollowUp: string;
   note: string;
 }
@@ -142,6 +149,7 @@ export interface Reservation {
 
 export interface Invoice {
   id: string;
+  documentNumber?: string;
   vehicleId: string;
   customerId: string;
   type: "cash" | "bank-transfer" | "installment" | "mixed";
@@ -574,7 +582,7 @@ export const seedLeads: Lead[] = [
     phone: "+964 780 222 7788",
     assignedTo: "Ali R.",
     vehicleId: "veh-002",
-    status: "contacted",
+    status: "contact",
     nextFollowUp: new Date(Date.now() + 172800000).toISOString(),
     note: "Interested in hybrid vehicles under 25k."
   }

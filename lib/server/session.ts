@@ -59,12 +59,28 @@ export async function getUserBySessionToken(token: string | null): Promise<DbUse
 }
 
 export async function getUserFromRequest(request: Request): Promise<DbUser | null> {
-  const token = await resolveSessionToken(request.headers.get("cookie"));
+  const { getDjangoUserFromAccessToken, readJwtAccessFromCookie } = await import(
+    "@/lib/server/jwt-session"
+  );
+  const { isDjangoAuthEnabled } = await import("@/lib/server/django-api");
+  const cookieHeader = request.headers.get("cookie");
+  if (isDjangoAuthEnabled()) {
+    const jwtUser = await getDjangoUserFromAccessToken(readJwtAccessFromCookie(cookieHeader));
+    if (jwtUser) return jwtUser;
+  }
+  const token = await resolveSessionToken(cookieHeader);
   return getUserBySessionToken(token);
 }
 
 export async function getUserFromCookies(): Promise<DbUser | null> {
+  const { getDjangoUserFromAccessToken } = await import("@/lib/server/jwt-session");
+  const { isDjangoAuthEnabled } = await import("@/lib/server/django-api");
   const jar = await cookies();
+  if (isDjangoAuthEnabled()) {
+    const access = jar.get("br_jwt_access")?.value ?? null;
+    const jwtUser = await getDjangoUserFromAccessToken(access);
+    if (jwtUser) return jwtUser;
+  }
   const raw = jar.get(SESSION_COOKIE)?.value ?? null;
   const token = await verifySessionCookieValue(raw);
   return getUserBySessionToken(token?.token ?? null);

@@ -14,6 +14,8 @@ export type CompanyPrintSettings = {
   email: string;
   commercialRegister: string;
   taxNumber: string;
+  /** ISO currency code — default Iraqi Dinar */
+  currency: string;
   branchName: string;
   invoiceFooter: string;
   contractLegalText: string;
@@ -39,6 +41,7 @@ export const defaultCompanyPrintSettings: CompanyPrintSettings = {
   email: "",
   commercialRegister: "",
   taxNumber: "",
+  currency: "IQD",
   branchName: "",
   invoiceFooter:
     "يُقر الطرفان بصحة البيانات الواردة أعلاه. تُطبق الشروط والأحكام المعتمدة لدى المعرض. أي نزاع يُحل وفق القوانين العراقية المعمول بها.",

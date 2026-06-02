@@ -10,9 +10,42 @@ import {
 } from "@/lib/server/db";
 import { defaultBranches } from "@/lib/server/auth-constants";
 import { registerSchema } from "@/lib/validation/register-schema";
+import {
+  djangoErrorMessage,
+  djangoJson,
+  isDjangoAuthEnabled,
+  sessionUserFromDjangoPayload
+} from "@/lib/server/django-api";
+import { jwtCookieHeaders } from "@/lib/server/jwt-session";
 import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 export async function GET() {
+  if (isDjangoAuthEnabled()) {
+    const { status, data } = await djangoJson<{
+      setup_completed: boolean;
+      registration_open?: boolean;
+    }>("/api/auth/setup/status/");
+    if (status !== 200) {
+      return NextResponse.json(
+        { error: djangoErrorMessage(data, "تعذر الاتصال بخادم المصادقة.") },
+        { status: status >= 400 ? status : 502 }
+      );
+    }
+    if (!data.setup_completed) {
+      return NextResponse.json({
+        open: true,
+        setupCompleted: false,
+        firstSetup: true,
+        message: "أنشئ أول حساب — سيصبح مدير النظام ويُفعَّل فوراً."
+      });
+    }
+    return NextResponse.json({
+      open: data.registration_open !== false,
+      setupCompleted: true,
+      firstSetup: false
+    });
+  }
+
   const db = await readDb();
   if (!db.setupCompleted) {
     return NextResponse.json({
@@ -30,12 +63,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const db = await readDb();
-
-  if (db.setupCompleted && !db.registrationOpen) {
-    return NextResponse.json({ error: "التسجيل مغلق حالياً. تواصل مع المدير العام." }, { status: 403 });
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -51,6 +78,100 @@ export async function POST(request: Request) {
 
   const data = parsed.data;
   const email = data.email.trim().toLowerCase();
+
+  if (isDjangoAuthEnabled()) {
+    const statusRes = await djangoJson<{ setup_completed: boolean; registration_open?: boolean }>(
+      "/api/auth/setup/status/"
+    );
+    if (statusRes.status !== 200) {
+      return NextResponse.json(
+        { error: djangoErrorMessage(statusRes.data, "تعذر الاتصال بخادم المصادقة.") },
+        { status: 502 }
+      );
+    }
+
+    if (!statusRes.data.setup_completed) {
+      const setup = await djangoJson<{
+        ok?: boolean;
+        access?: string;
+        refresh?: string;
+        user?: {
+          id: string;
+          email: string;
+          name: string;
+          role: string;
+          branch: string;
+          permissions: string[];
+        };
+        detail?: string;
+      }>("/api/auth/setup/", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password: data.password,
+          name: data.name.trim(),
+          phone: data.phone.trim()
+        })
+      });
+      if (setup.status !== 201 || !setup.data.ok || !setup.data.access || !setup.data.refresh) {
+        return NextResponse.json(
+          { error: djangoErrorMessage(setup.data, "فشل إنشاء المدير الأول.") },
+          { status: setup.status >= 400 ? setup.status : 400 }
+        );
+      }
+      const sessionUser = sessionUserFromDjangoPayload(setup.data.user!);
+      const response = NextResponse.json({
+        ok: true,
+        message: "تم إنشاء الحساب بنجاح. جاري تحويلك إلى لوحة التحكم.",
+        status: "active",
+        user: sessionUser
+      });
+      for (const header of jwtCookieHeaders(setup.data.access, setup.data.refresh, request)) {
+        response.headers.append("Set-Cookie", header);
+      }
+      return response;
+    }
+
+    if (statusRes.data.registration_open === false) {
+      return NextResponse.json({ error: "التسجيل مغلق حالياً. تواصل مع المدير العام." }, { status: 403 });
+    }
+
+    const reg = await djangoJson<{
+      ok?: boolean;
+      message?: string;
+      verification_url?: string;
+      user?: { status?: string };
+      detail?: string;
+    }>("/api/auth/register/", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        password: data.password,
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+        role: "sales",
+        accept_terms: true
+      })
+    });
+    if (reg.status !== 201 || !reg.data.ok) {
+      return NextResponse.json(
+        { error: djangoErrorMessage(reg.data, "فشل إنشاء الحساب.") },
+        { status: reg.status >= 400 ? reg.status : 400 }
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      message: reg.data.message ?? "تم إنشاء الحساب، بانتظار موافقة المدير.",
+      status: "pending-approval",
+      verificationUrl: reg.data.verification_url
+    });
+  }
+
+  const db = await readDb();
+
+  if (db.setupCompleted && !db.registrationOpen) {
+    return NextResponse.json({ error: "التسجيل مغلق حالياً. تواصل مع المدير العام." }, { status: 403 });
+  }
 
   if (db.users.some((u) => u.email === email)) {
     return NextResponse.json({ error: "البريد الإلكتروني مستخدم مسبقاً." }, { status: 409 });

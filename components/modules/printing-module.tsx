@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ar } from "@/lib/i18n/ar";
 import {
   buildInstallmentContractPrintHtml,
@@ -14,19 +14,61 @@ import { PrintToolbar } from "@/components/print/print-toolbar";
 import { ModulePage } from "@/components/modules/module-page";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
 import { EmptyState, SecondaryButton } from "@/components/ui/primitives";
+import type { PrintedDocument } from "@/lib/domain";
 import { useShowroomStore } from "@/lib/offline-store";
+import { apiPrintLogsEnabled, printLogFromApi } from "@/lib/print-log-api";
+import { registerPrintEvent } from "@/lib/register-print";
 import { invoiceToDefaultLineItems } from "@/lib/print-line-items";
 import { formatDateTime } from "@/lib/utils";
 
 const SAMPLE_DOC_NO = "INV-000001";
 
 export function PrintingModule() {
-  const printedDocuments = useShowroomStore((s) => s.printedDocuments);
+  const storePrinted = useShowroomStore((s) => s.printedDocuments);
   const invoices = useShowroomStore((s) => s.invoices);
   const vehicles = useShowroomStore((s) => s.vehicles);
   const customers = useShowroomStore((s) => s.customers);
   const recordPrint = useShowroomStore((s) => s.recordPrint);
   const deletePrintedDocument = useShowroomStore((s) => s.deletePrintedDocument);
+  const [apiPrinted, setApiPrinted] = useState<PrintedDocument[] | null>(null);
+  const [fetchingLogs, setFetchingLogs] = useState(apiPrintLogsEnabled);
+
+  const loadPrintLogs = useCallback(async () => {
+    if (!apiPrintLogsEnabled) return;
+    setFetchingLogs(true);
+    try {
+      const res = await fetch("/api/printing/logs", { credentials: "include" });
+      const data = (await res.json()) as { logs?: unknown[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "تعذر تحميل سجل الطباعة");
+      setApiPrinted(
+        (data.logs ?? []).map((row) =>
+          printLogFromApi(row as Record<string, unknown>)
+        )
+      );
+    } catch {
+      setApiPrinted([]);
+    } finally {
+      setFetchingLogs(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!apiPrintLogsEnabled) return;
+    const timer = window.setTimeout(() => void loadPrintLogs(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadPrintLogs]);
+
+  const printedDocuments =
+    apiPrintLogsEnabled && apiPrinted !== null ? apiPrinted : storePrinted;
+
+  const onPrintRecorded = useCallback(
+    (documentType: string, documentNumber: string) => {
+      void registerPrintEvent(recordPrint, { documentType, documentNumber }).then(() => {
+        if (apiPrintLogsEnabled) void loadPrintLogs();
+      });
+    },
+    [recordPrint, loadPrintLogs]
+  );
 
   const sampleRow = useMemo(() => {
     const inv = invoices[0];
@@ -121,7 +163,7 @@ export function PrintingModule() {
                     <PrintDocumentActions
                       title={`معاينة ${t.label}`}
                       getHtml={t.getHtml}
-                      onPrinted={() => recordPrint(t.label, SAMPLE_DOC_NO)}
+                      onPrinted={() => onPrintRecorded(t.key, SAMPLE_DOC_NO)}
                       lineItemsEditor={{
                         initialLineItems: invoiceToDefaultLineItems(sampleRow.inv, sampleRow.vehicle),
                         buildHtml: (items) =>
@@ -140,7 +182,7 @@ export function PrintingModule() {
                     <PrintDocumentActions
                       title={`معاينة ${t.label}`}
                       getHtml={t.getHtml}
-                      onPrinted={() => recordPrint(t.label, SAMPLE_DOC_NO)}
+                      onPrinted={() => onPrintRecorded(t.key, SAMPLE_DOC_NO)}
                     />
                   </div>
                 )}
@@ -157,7 +199,9 @@ export function PrintingModule() {
           <h3 className="font-bold text-white">سجل المستندات المطبوعة</h3>
           <PrintToolbar title="سجل الطباعة" printHtmlBody={reportHtml} />
         </div>
-        {printedDocuments.length === 0 ? (
+        {fetchingLogs ? (
+          <p className="text-sm text-white/50">{ar.loading}</p>
+        ) : printedDocuments.length === 0 ? (
           <EmptyState title={ar.noData} hint="لم تُسجّل طباعة بعد. اطبع من قسم المبيعات أو التقارير." />
         ) : (
           <div className="overflow-x-auto">

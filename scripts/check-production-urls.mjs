@@ -7,7 +7,17 @@ import { join } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 const SKIP_DIRS = new Set(["node_modules", ".next", ".git", "data"]);
-const ALLOW_FILES = new Set(["lib/runtime-config.ts", "lib/server/app-url.ts", "scripts/check-production-urls.mjs"]);
+const ALLOW_FILES = new Set([
+  "lib/runtime-config.ts",
+  "lib/server/app-url.ts",
+  "scripts/check-production-urls.mjs",
+  "scripts/test-django-auth.mjs",
+  "scripts/test-django-organization.mjs",
+  "scripts/test-django-vehicles.mjs",
+  "scripts/test-django-customers.mjs",
+  "scripts/test-django-sales.mjs",
+  "scripts/test-django-printing.mjs"
+]);
 
 const PATTERNS = [
   { re: /http:\/\/localhost(?::\d+)?/gi, label: "http://localhost" },

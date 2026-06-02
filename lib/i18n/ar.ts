@@ -82,10 +82,11 @@ export const ar = {
     "not-ready": "غير جاهزة"
   },
   leadStatus: {
-    new: "جديد",
-    contacted: "تم التواصل",
     interested: "مهتم",
-    converted: "تم البيع"
+    contact: "تواصل",
+    reserved: "حجز",
+    purchased: "اشترى",
+    cancelled: "ملغي"
   },
   paymentType: {
     cash: "نقدي",

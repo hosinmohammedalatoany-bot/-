@@ -15,8 +15,17 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "npm run typecheck && npm run check:urls && node scripts/test-register-auth.mjs && node scripts/test-session-signature.mjs",
+    "test:django": "node scripts/test-django-auth.mjs",
+    "test:django:organization": "node scripts/test-django-organization.mjs",
+    "test:django:vehicles": "node scripts/test-django-vehicles.mjs",
+    "test:django:customers": "node scripts/test-django-customers.mjs",
+    "test:django:sales": "node scripts/test-django-sales.mjs",
+    "test:django:printing": "node scripts/test-django-printing.mjs",
     "test:register": "node scripts/test-register-auth.mjs",
-    "reset:system": "node scripts/reset-system.mjs"
+    "reset:system": "node scripts/reset-system.mjs",
+    "api:check": "cd backend && python3 manage.py check",
+    "api:migrate": "cd backend && python3 manage.py migrate",
+    "api:dev": "cd backend && python3 manage.py runserver 0.0.0.0:8000"
   },
   "repository": {
     "type": "git",

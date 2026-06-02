@@ -21,7 +21,8 @@ const implemented: ModuleKey[] = [
   "permissions",
   "backup-sync",
   "reports",
-  "settings"
+  "settings",
+  "branches"
 ];
 
 export function GenericModule({ moduleKey }: { moduleKey: ModuleKey }) {

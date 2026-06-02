@@ -7,6 +7,7 @@ import {
   verifyPassword,
   writeDb
 } from "@/lib/server/db";
+import { djangoErrorMessage, djangoJson, isDjangoAuthEnabled } from "@/lib/server/django-api";
 
 export async function POST(request: Request) {
   const body = (await request.json()) as { token?: string; password?: string; confirm?: string };
@@ -22,6 +23,26 @@ export async function POST(request: Request) {
   }
   if (!isStrongPassword(password)) {
     return NextResponse.json({ error: "كلمة المرور ضعيفة." }, { status: 400 });
+  }
+
+  if (isDjangoAuthEnabled()) {
+    const { status, data } = await djangoJson<{ ok?: boolean; message?: string; detail?: string }>(
+      "/api/auth/reset-password/",
+      {
+        method: "POST",
+        body: JSON.stringify({ token, password })
+      }
+    );
+    if (status !== 200 || !data.ok) {
+      return NextResponse.json(
+        { error: djangoErrorMessage(data, "فشل إعادة تعيين كلمة المرور.") },
+        { status: status >= 400 ? status : 400 }
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      message: data.message ?? "تم تغيير كلمة المرور بنجاح، يرجى تسجيل الدخول."
+    });
   }
 
   const db = await readDb();

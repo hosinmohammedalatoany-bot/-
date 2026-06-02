@@ -7,6 +7,15 @@ import {
   verifyPassword,
   writeDb
 } from "@/lib/server/db";
+import {
+  djangoErrorMessage,
+  djangoJson,
+  isDjangoAuthEnabled
+} from "@/lib/server/django-api";
+import {
+  readJwtAccessFromCookie,
+  readJwtRefreshFromCookie
+} from "@/lib/server/jwt-session";
 import { getUserFromRequest, parseSessionToken } from "@/lib/server/session";
 
 export async function POST(request: Request) {
@@ -42,6 +51,49 @@ export async function POST(request: Request) {
       },
       { status: 400 }
     );
+  }
+
+  if (isDjangoAuthEnabled()) {
+    const cookieHeader = request.headers.get("cookie");
+    const access = readJwtAccessFromCookie(cookieHeader);
+    if (!access) {
+      return NextResponse.json({ error: "انتهت الجلسة، يرجى تسجيل الدخول من جديد." }, { status: 401 });
+    }
+    const { status, data } = await djangoJson<{ ok?: boolean; detail?: string }>(
+      "/api/auth/change-password/",
+      {
+        method: "POST",
+        accessToken: access,
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword
+        })
+      }
+    );
+    if (status !== 200 || !data.ok) {
+      return NextResponse.json(
+        { error: djangoErrorMessage(data, "فشل تغيير كلمة المرور.") },
+        { status: status >= 400 ? status : 400 }
+      );
+    }
+    if (body.logoutOtherDevices !== false) {
+      const refresh = readJwtRefreshFromCookie(cookieHeader);
+      await djangoJson("/api/auth/logout-all/", {
+        method: "POST",
+        accessToken: access
+      });
+      if (refresh) {
+        await djangoJson("/api/auth/logout/", {
+          method: "POST",
+          accessToken: access,
+          body: JSON.stringify({ refresh })
+        });
+      }
+    }
+    return NextResponse.json({
+      ok: true,
+      message: "تم تغيير كلمة المرور بنجاح."
+    });
   }
 
   const db = await readDb();

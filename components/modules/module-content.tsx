@@ -15,6 +15,7 @@ import { PermissionsModule } from "@/components/modules/permissions-module";
 import { BackupSyncModule } from "@/components/modules/backup-sync-module";
 import { ReportsModule } from "@/components/modules/reports-module";
 import { SettingsModule } from "@/components/modules/settings-module";
+import { BranchesModule } from "@/components/modules/branches-module";
 import { GenericModule } from "@/components/modules/generic-module";
 
 const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
@@ -31,7 +32,8 @@ const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
   permissions: PermissionsModule,
   "backup-sync": BackupSyncModule,
   reports: ReportsModule,
-  settings: SettingsModule
+  settings: SettingsModule,
+  branches: BranchesModule
 };
 
 export function ModuleContent({ moduleKey }: { moduleKey: ModuleKey }) {

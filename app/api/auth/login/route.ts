@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { loginStatusMessagesAr } from "@/lib/server/auth-constants";
+import { djangoLogin, isDjangoAuthEnabled, mapDjangoRoleToClient } from "@/lib/server/django-api";
 import {
   appendAuditLog,
   createToken,
@@ -8,17 +9,13 @@ import {
   verifyPassword,
   writeDb
 } from "@/lib/server/db";
+import { jwtCookieHeaders } from "@/lib/server/jwt-session";
 import { sessionCookieHeader, sessionMaxAgeSeconds } from "@/lib/server/session";
 
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
 export async function POST(request: Request) {
-  const db = await readDb();
-  if (!db.setupCompleted) {
-    return NextResponse.json({ error: "يجب إعداد المدير الأول أولاً.", needsSetup: true }, { status: 403 });
-  }
-
   const body = (await request.json()) as { email?: string; password?: string; rememberMe?: boolean };
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";
@@ -26,6 +23,41 @@ export async function POST(request: Request) {
 
   if (!email || !password) {
     return NextResponse.json({ error: "أدخل البريد الإلكتروني وكلمة المرور." }, { status: 400 });
+  }
+
+  if (isDjangoAuthEnabled()) {
+    const result = await djangoLogin(email, password);
+    if (!result.ok) {
+      return NextResponse.json(
+        {
+          error: result.error,
+          needsSetup: result.needsSetup
+        },
+        { status: result.status }
+      );
+    }
+    const { access, refresh, user } = result.data;
+    const response = NextResponse.json({
+      ok: true,
+      mustChangePassword: user.must_change_password ?? false,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: mapDjangoRoleToClient(user.role),
+        branch: user.branch,
+        permissions: user.permissions
+      }
+    });
+    for (const header of jwtCookieHeaders(access, refresh, request, rememberMe)) {
+      response.headers.append("Set-Cookie", header);
+    }
+    return response;
+  }
+
+  const db = await readDb();
+  if (!db.setupCompleted) {
+    return NextResponse.json({ error: "يجب إعداد المدير الأول أولاً.", needsSetup: true }, { status: 403 });
   }
 
   const user = db.users.find((item) => item.email === email);

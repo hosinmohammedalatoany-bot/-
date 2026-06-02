@@ -284,7 +284,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     const lead: Lead = {
       id: createId("lead"),
       ...input,
-      status: "new",
+      status: "interested",
       note: input.note ?? "",
       nextFollowUp: new Date(Date.now() + 86400000).toISOString()
     };
