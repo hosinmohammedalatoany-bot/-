@@ -97,12 +97,28 @@ export default async function VerifyVehiclePage({ params }: { params: Promise<{ 
             </p>
           </>
         )}
-        <Link
-          href="/login"
-          className="mt-6 inline-block rounded-xl bg-[#d6a84f] px-6 py-3 text-sm font-bold text-black"
-        >
-          دخول الموظفين
-        </Link>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          {vehicle?.status === "available" && (
+            <Link
+              href={`/showroom/${vehicle.id}`}
+              className="inline-block rounded-xl border border-[#d6a84f]/50 px-6 py-3 text-sm font-bold text-[#d6a84f]"
+            >
+              عرض في المعرض
+            </Link>
+          )}
+          <Link
+            href="/showroom"
+            className="inline-block rounded-xl bg-white/10 px-6 py-3 text-sm font-semibold text-white"
+          >
+            كل السيارات
+          </Link>
+          <Link
+            href="/login"
+            className="inline-block rounded-xl bg-[#d6a84f] px-6 py-3 text-sm font-bold text-black"
+          >
+            دخول الموظفين
+          </Link>
+        </div>
       </div>
     </div>
   );
