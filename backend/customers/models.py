@@ -102,6 +102,26 @@ class Lead(models.Model):
         return self.name
 
 
+class CustomerNote(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="timeline_notes"
+    )
+    body = models.TextField()
+    author_name = models.CharField(max_length=120, blank=True)
+    created_by = models.ForeignKey(
+        "accounts.ShowroomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customer_notes_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class LeadNote(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="notes")

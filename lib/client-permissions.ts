@@ -10,9 +10,20 @@ export type ClientUser = {
 
 const roleDefaults: Record<string, string[]> = {
   "super-admin": ["*"],
-  "branch-manager": ["dashboard", "cars", "customers", "leads", "sales", "installments", "reports"],
-  sales: ["dashboard", "cars", "customers", "leads", "sales", "reservations", "whatsapp"],
-  accountant: ["dashboard", "accounting", "installments", "reports"],
+  "branch-manager": [
+    "dashboard",
+    "cars",
+    "customers",
+    "leads",
+    "sales",
+    "installments",
+    "reports",
+    "notifications",
+    "branches",
+    "settings"
+  ],
+  sales: ["dashboard", "cars", "customers", "leads", "sales", "reservations", "notifications", "whatsapp"],
+  accountant: ["dashboard", "accounting", "installments", "reports", "notifications"],
   inventory: ["dashboard", "cars", "inventory", "purchases", "maintenance"],
   "read-only": ["dashboard", "cars", "customers", "reports"]
 };

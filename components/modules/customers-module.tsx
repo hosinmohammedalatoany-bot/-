@@ -7,7 +7,8 @@ import { useActionLog } from "@/hooks/use-action-log";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { DeleteRowButton } from "@/components/ui/delete-row-button";
-import { EmptyState, Field, PrimaryButton, inputClass } from "@/components/ui/primitives";
+import { EmptyState, Field, PrimaryButton, SecondaryButton, inputClass } from "@/components/ui/primitives";
+import { formatDateTime } from "@/lib/utils";
 import { useShowroomStore } from "@/lib/offline-store";
 import { customerFromApi } from "@/lib/customers-map";
 import { customerSchema, type CustomerInput } from "@/lib/validation";
@@ -36,6 +37,12 @@ export function CustomersModule() {
   const [fetching, setFetching] = useState(apiCustomersEnabled);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [timeline, setTimeline] = useState<
+    Array<{ id: string; kind: string; title: string; body?: string; author?: string; created_at: string }>
+  >([]);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [noteBody, setNoteBody] = useState("");
   const form = useForm<CustomerInput>({ defaultValues: emptyCustomer });
 
   const customers =
@@ -119,6 +126,59 @@ export function CustomersModule() {
     log(`تمت إضافة العميل ${customer.name}.`);
     form.reset(emptyCustomer);
     setLoading(false);
+  }
+
+  const loadTimeline = useCallback(
+    async (customerId: string) => {
+      if (!apiCustomersEnabled) return;
+      setTimelineLoading(true);
+      try {
+        const res = await fetch(`/api/workspace/customers/${customerId}/timeline`, {
+          credentials: "include"
+        });
+        const data = (await res.json()) as {
+          events?: typeof timeline;
+          error?: string;
+        };
+        if (!res.ok) throw new Error(data.error ?? "تعذر تحميل السجل");
+        setTimeline(data.events ?? []);
+      } catch (e) {
+        log(e instanceof Error ? e.message : "تعذر تحميل السجل");
+        setTimeline([]);
+      } finally {
+        setTimelineLoading(false);
+      }
+    },
+    [log]
+  );
+
+  async function selectCustomer(customer: Customer) {
+    setSelectedId(customer.id);
+    setNoteBody("");
+    await loadTimeline(customer.id);
+  }
+
+  async function addNote() {
+    if (!selectedId || !noteBody.trim()) return;
+    if (!apiCustomersEnabled) {
+      log("يتطلب ربط API لإضافة ملاحظات على الخادم.");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/customers/${selectedId}/notes`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: noteBody.trim() })
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "تعذر حفظ الملاحظة");
+      log("تمت إضافة الملاحظة.");
+      setNoteBody("");
+      await loadTimeline(selectedId);
+    } catch (e) {
+      log(e instanceof Error ? e.message : "تعذر حفظ الملاحظة");
+    }
   }
 
   async function removeCustomer(customer: Customer) {
@@ -211,8 +271,19 @@ export function CustomersModule() {
               </thead>
               <tbody className="divide-y divide-white/10">
                 {filtered.map((c) => (
-                  <tr key={c.id}>
-                    <td className="py-3 font-bold text-white">{c.name}</td>
+                  <tr
+                    key={c.id}
+                    className={selectedId === c.id ? "bg-[#d6a84f]/10" : undefined}
+                  >
+                    <td className="py-3">
+                      <button
+                        type="button"
+                        className="font-bold text-white hover:text-[#f3c96b]"
+                        onClick={() => void selectCustomer(c)}
+                      >
+                        {c.name}
+                      </button>
+                    </td>
                     <td dir="ltr">{c.phone}</td>
                     <td dir="ltr">{c.email}</td>
                     <td>{c.idNumber}</td>
@@ -227,6 +298,47 @@ export function CustomersModule() {
           </div>
         )}
       </section>
+
+      {apiCustomersEnabled && selectedId && (
+        <section className="luxury-panel rounded-[2rem] p-5">
+          <h3 className="font-bold text-white">الخط الزمني والمتابعة</h3>
+          <p className="mt-1 text-sm text-white/55">
+            ملاحظات، عملاء محتملون، فواتير، وحجوزات مرتبطة بالعميل.
+          </p>
+          {timelineLoading ? (
+            <p className="mt-4 text-sm text-white/50">جاري التحميل…</p>
+          ) : timeline.length === 0 ? (
+            <EmptyState title="لا أحداث بعد" hint="أضف ملاحظة للمتابعة." />
+          ) : (
+            <ul className="mt-4 max-h-72 space-y-3 overflow-y-auto text-sm">
+              {timeline.map((ev) => (
+                <li key={ev.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="font-semibold text-white">{ev.title}</p>
+                  {ev.body && <p className="text-white/60">{ev.body}</p>}
+                  {ev.author && <p className="text-xs text-white/40">بواسطة {ev.author}</p>}
+                  <p className="text-xs text-white/35">{formatDateTime(ev.created_at)}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <textarea
+              className={inputClass + " min-h-[80px] flex-1"}
+              placeholder="ملاحظة متابعة جديدة…"
+              value={noteBody}
+              onChange={(e) => setNoteBody(e.target.value)}
+            />
+          </div>
+          <div className="mt-2 flex gap-2">
+            <PrimaryButton type="button" onClick={() => void addNote()} disabled={!noteBody.trim()}>
+              إضافة ملاحظة
+            </PrimaryButton>
+            <SecondaryButton onClick={() => setSelectedId(null)}>
+              إغلاق
+            </SecondaryButton>
+          </div>
+        </section>
+      )}
 
       {items.length > 0 && (
         <section className="luxury-panel rounded-2xl p-4 text-sm text-white/60">

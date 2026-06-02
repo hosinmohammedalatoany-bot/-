@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "accounting",
     "reports",
     "ops",
+    "workspace",
+    "premium",
 ]
 
 AUTH_USER_MODEL = "accounts.ShowroomUser"

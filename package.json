@@ -26,6 +26,7 @@
     "test:django:reports": "node scripts/test-django-reports.mjs",
     "test:django:security": "node scripts/test-django-security.mjs",
     "test:django:ops": "node scripts/test-django-ops.mjs",
+    "test:django:workspace": "node scripts/test-django-workspace.mjs",
     "test:django:public": "node scripts/test-django-public.mjs",
     "test:pwa": "node scripts/validate-pwa.mjs",
     "test:register": "node scripts/test-register-auth.mjs",

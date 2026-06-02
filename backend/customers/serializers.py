@@ -3,7 +3,7 @@ from rest_framework import serializers
 
 from accounts.models import Branch
 
-from .models import Customer, Lead, LeadNote, LeadSource, LeadStatus
+from .models import Customer, CustomerNote, Lead, LeadNote, LeadSource, LeadStatus
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -70,6 +70,32 @@ class CustomerWriteSerializer(serializers.ModelSerializer):
             setattr(instance, key, value)
         instance.save()
         return instance
+
+
+class CustomerNoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerNote
+        fields = ["id", "body", "author_name", "created_at"]
+        read_only_fields = ["id", "author_name", "created_at"]
+
+
+class CustomerNoteCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerNote
+        fields = ["body"]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        customer = self.context["customer"]
+        author = ""
+        if request and request.user.is_authenticated:
+            author = request.user.full_display_name
+        return CustomerNote.objects.create(
+            customer=customer,
+            author_name=author,
+            created_by=request.user if request else None,
+            **validated_data,
+        )
 
 
 class LeadNoteSerializer(serializers.ModelSerializer):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { buildTableReportHtml } from "@/components/print/document-templates";
 import { PrintToolbar } from "@/components/print/print-toolbar";
@@ -15,12 +15,40 @@ import {
   Users
 } from "lucide-react";
 import { ar } from "@/lib/i18n/ar";
-import { useShowroomMetrics } from "@/hooks/use-showroom-metrics";
+import { useDashboardMetrics } from "@/hooks/use-dashboard-metrics";
 import { useShowroomStore } from "@/lib/offline-store";
+import { inputClass } from "@/components/ui/primitives";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 
+const apiEnabled = Boolean(
+  typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_BASE_URL?.trim()
+);
+
 export function DashboardModule() {
-  const metrics = useShowroomMetrics();
+  const [branchFilter, setBranchFilter] = useState("");
+  const [branches, setBranches] = useState<string[]>([]);
+  const metrics = useDashboardMetrics(branchFilter || undefined);
+
+  const loadBranches = useCallback(async () => {
+    if (!apiEnabled) return;
+    try {
+      const res = await fetch("/api/organization/branches?active_only=1", {
+        credentials: "include"
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { branches?: Array<{ name: string }> };
+      setBranches((data.branches ?? []).map((b) => b.name).filter(Boolean));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      void loadBranches();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [loadBranches]);
   const syncStatus = useShowroomStore((s) => s.syncStatus);
   const pendingOperations = useShowroomStore((s) => s.pendingOperations);
   const lastSyncAt = useShowroomStore((s) => s.lastSyncAt);
@@ -76,7 +104,28 @@ export function DashboardModule() {
         <h2 className="mt-2 text-3xl font-black text-white">{ar.appFullName}</h2>
         <p className="mt-2 max-w-2xl text-sm text-white/55">
           ملخص تنفيذي فقط — اختر قسماً من القائمة الجانبية لإدارة السيارات والعملاء والمبيعات والتقارير.
+          {metrics.source === "api" && (
+            <span className="block text-xs text-emerald-200/80">البيانات من الخادم (حسب الفرع المحدد).</span>
+          )}
         </p>
+        {apiEnabled && branches.length > 0 && (
+          <div className="mt-4 max-w-xs">
+            <label className="mb-1 block text-xs text-white/50">فرع اللوحة</label>
+            <select
+              className={inputClass}
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+            >
+              <option value="">كل الفروع (حسب صلاحيتك)</option>
+              {branches.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {metrics.error && <p className="mt-2 text-sm text-red-300">{metrics.error}</p>}
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <PrintToolbar title="لوحة التحكم" printHtmlBody={dashboardPrintHtml} />
         </div>

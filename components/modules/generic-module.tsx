@@ -23,7 +23,8 @@ const implemented: ModuleKey[] = [
   "system-health",
   "reports",
   "settings",
-  "branches"
+  "branches",
+  "notifications"
 ];
 
 export function GenericModule({ moduleKey }: { moduleKey: ModuleKey }) {

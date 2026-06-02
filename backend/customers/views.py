@@ -7,8 +7,10 @@ from accounts.permissions import IsAuthenticatedActive, require_module
 from accounts.roles import has_permission
 from accounts.services import log_audit
 
-from .models import Customer, Lead, LeadNote
+from .models import Customer, CustomerNote, Lead, LeadNote
 from .serializers import (
+    CustomerNoteCreateSerializer,
+    CustomerNoteSerializer,
     CustomerSerializer,
     CustomerWriteSerializer,
     LeadDetailSerializer,
@@ -104,6 +106,36 @@ class CustomerDetailView(APIView):
             details=f"أرشفة عميل {customer.name}",
         )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CustomerNoteListCreateView(APIView):
+    permission_classes = [IsAuthenticatedActive, require_module("customers")]
+
+    def get(self, request, customer_id):
+        try:
+            customer = Customer.objects.get(pk=customer_id)
+        except Customer.DoesNotExist:
+            return Response({"detail": "العميل غير موجود."}, status=404)
+        notes = customer.timeline_notes.all()[:100]
+        return Response(CustomerNoteSerializer(notes, many=True).data)
+
+    def post(self, request, customer_id):
+        try:
+            customer = Customer.objects.get(pk=customer_id, is_archived=False)
+        except Customer.DoesNotExist:
+            return Response({"detail": "العميل غير موجود."}, status=404)
+        serializer = CustomerNoteCreateSerializer(
+            data=request.data, context={"request": request, "customer": customer}
+        )
+        serializer.is_valid(raise_exception=True)
+        note = serializer.save()
+        log_audit(
+            action="customer.note",
+            actor=request.user,
+            target_id=str(customer.id),
+            details=f"ملاحظة على {customer.name}",
+        )
+        return Response(CustomerNoteSerializer(note).data, status=status.HTTP_201_CREATED)
 
 
 class LeadListCreateView(APIView):

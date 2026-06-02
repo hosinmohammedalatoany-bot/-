@@ -54,6 +54,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "installments",
         "inventory",
         "reports",
+        "notifications",
         "branches",
         "settings",
         "print.invoices",
@@ -71,6 +72,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "leads",
         "sales",
         "reservations",
+        "notifications",
         "whatsapp",
     ],
     ROLE_ACCOUNTANT: [
@@ -78,6 +80,7 @@ ROLE_PERMISSIONS: dict[str, list[str]] = {
         "audit.view",
         "accounting",
         "installments",
+        "notifications",
         "installment.adjust",
         "expense.delete",
         "reports",

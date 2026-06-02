@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Cloud, CloudOff, LogOut, Menu, RefreshCcw, X } from "lucide-react";
 import { useState } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+import { GlobalSearch } from "@/components/workspace/global-search";
 import { moduleIcons } from "@/components/layout/module-icons";
 import { PrimaryButton, SecondaryButton, StatusBadge } from "@/components/ui/primitives";
 import { canAccessModule, type ClientUser } from "@/lib/client-permissions";
@@ -169,6 +170,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </p>
                 )}
               </div>
+            </div>
+            <div className="flex w-full min-w-0 flex-1 flex-wrap items-center justify-end gap-2 xl:max-w-xl">
+              <GlobalSearch branchName={sessionUser?.branch} />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="flex items-center gap-2 text-sm text-white/60">

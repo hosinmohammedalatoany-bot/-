@@ -17,6 +17,7 @@ import { SystemHealthModule } from "@/components/modules/system-health-module";
 import { ReportsModule } from "@/components/modules/reports-module";
 import { SettingsModule } from "@/components/modules/settings-module";
 import { BranchesModule } from "@/components/modules/branches-module";
+import { NotificationsModule } from "@/components/modules/notifications-module";
 import { GenericModule } from "@/components/modules/generic-module";
 
 const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
@@ -35,7 +36,8 @@ const dedicated: Partial<Record<ModuleKey, React.ComponentType>> = {
   "system-health": SystemHealthModule,
   reports: ReportsModule,
   settings: SettingsModule,
-  branches: BranchesModule
+  branches: BranchesModule,
+  notifications: NotificationsModule
 };
 
 export function ModuleContent({ moduleKey }: { moduleKey: ModuleKey }) {
