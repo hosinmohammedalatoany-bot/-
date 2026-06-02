@@ -25,6 +25,7 @@
     "test:django:accounting": "node scripts/test-django-accounting.mjs",
     "test:django:reports": "node scripts/test-django-reports.mjs",
     "test:django:security": "node scripts/test-django-security.mjs",
+    "test:pwa": "node scripts/validate-pwa.mjs",
     "test:register": "node scripts/test-register-auth.mjs",
     "reset:system": "node scripts/reset-system.mjs",
     "api:check": "cd backend && python3 manage.py check",

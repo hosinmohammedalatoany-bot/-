@@ -34,9 +34,21 @@ import {
 } from "@/lib/validation";
 
 const DB_NAME = "baraa-raed-offline-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "state";
+const SYNC_LOG_STORE = "sync_logs";
 const STATE_KEY = "dashboard";
+const MAX_SYNC_LOG_ENTRIES = 80;
+
+export interface SyncLogEntry {
+  id: string;
+  at: string;
+  status: "success" | "partial" | "failed";
+  accepted: number;
+  duplicates: number;
+  remaining: number;
+  message: string;
+}
 
 interface PersistedState {
   vehicles: Vehicle[];
@@ -49,6 +61,7 @@ interface PersistedState {
   pendingOperations: PendingOperation[];
   auditEvents: AuditEvent[];
   printedDocuments: PrintedDocument[];
+  syncLogs: SyncLogEntry[];
   lastSyncAt?: string;
 }
 
@@ -93,6 +106,7 @@ const baseState: PersistedState = {
   pendingOperations: [],
   auditEvents: seedAuditEvents,
   printedDocuments: [],
+  syncLogs: [],
   lastSyncAt: undefined
 };
 
@@ -108,6 +122,7 @@ export const factoryEmptyState: PersistedState = {
   pendingOperations: [],
   auditEvents: [],
   printedDocuments: [],
+  syncLogs: [],
   lastSyncAt: undefined
 };
 
@@ -122,6 +137,9 @@ function openDatabase() {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(SYNC_LOG_STORE)) {
+        db.createObjectStore(SYNC_LOG_STORE, { keyPath: "id" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -171,6 +189,7 @@ function snapshot(state: ShowroomState): PersistedState {
     pendingOperations: state.pendingOperations,
     auditEvents: state.auditEvents,
     printedDocuments: state.printedDocuments ?? [],
+    syncLogs: state.syncLogs ?? [],
     lastSyncAt: state.lastSyncAt
   };
 }
@@ -185,6 +204,23 @@ function queue(operation: QueueOperation, entityLabel: string, entityId: string,
     createdAt: new Date().toISOString(),
     attempts: 0
   };
+}
+
+/** Keep newest pending op per operation+entity (avoids duplicate pushes after reconnect). */
+function enqueuePending(pending: PendingOperation[], op: PendingOperation): PendingOperation[] {
+  const filtered = pending.filter(
+    (item) => !(item.operation === op.operation && item.entityId === op.entityId)
+  );
+  return [op, ...filtered];
+}
+
+function appendSyncLog(state: PersistedState, entry: Omit<SyncLogEntry, "id" | "at">): SyncLogEntry[] {
+  const row: SyncLogEntry = {
+    id: createId("sync"),
+    at: new Date().toISOString(),
+    ...entry
+  };
+  return [row, ...(state.syncLogs ?? [])].slice(0, MAX_SYNC_LOG_ENTRIES);
 }
 
 function audit(action: string, target: string): AuditEvent {
@@ -374,11 +410,29 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   },
   setNetworkStatus: (online) => set({ syncStatus: online ? "online" : "offline" }),
   synchronize: async () => {
-    if (get().syncStatus === "offline") {
+    if (get().syncStatus === "offline" || get().syncStatus === "syncing") {
       return;
     }
 
-    const pending = get().pendingOperations;
+    const seenKeys = new Set<string>();
+    const pending = get().pendingOperations.filter((op) => {
+      const key = `${op.operation}::${op.entityId}`;
+      if (seenKeys.has(key)) {
+        return false;
+      }
+      seenKeys.add(key);
+      return true;
+    });
+
+    if (pending.length !== get().pendingOperations.length) {
+      set({ pendingOperations: pending });
+    }
+
+    if (pending.length === 0) {
+      set({ syncStatus: navigator.onLine ? "online" : "offline" });
+      return;
+    }
+
     set({ syncStatus: "syncing" });
 
     try {
@@ -409,13 +463,20 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
       });
 
       if (response.status === 401) {
-        set({
+        set((state) => ({
           syncStatus: navigator.onLine ? "online" : "offline",
+          syncLogs: appendSyncLog(state, {
+            status: "failed",
+            accepted: 0,
+            duplicates: 0,
+            remaining: pending.length,
+            message: "انتهت الجلسة — سجّل الدخول ثم أعد المزامنة"
+          }),
           auditEvents: [
             audit("Sync failed — session expired", "يرجى تسجيل الدخول من جديد"),
-            ...get().auditEvents
+            ...state.auditEvents
           ]
-        });
+        }));
         void persistState(snapshot(get()));
         return;
       }
@@ -424,15 +485,32 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
         throw new Error(`sync ${response.status}`);
       }
 
-      const result = (await response.json()) as { accepted?: number; note?: string };
+      const result = (await response.json()) as {
+        accepted?: number;
+        acceptedIds?: string[];
+        duplicateIds?: string[];
+        note?: string;
+      };
+      const settled = new Set([...(result.acceptedIds ?? []), ...(result.duplicateIds ?? [])]);
+      const remaining = pending.filter((op) => !settled.has(op.id));
+      const acceptedCount = result.acceptedIds?.length ?? result.accepted ?? 0;
+      const duplicateCount = result.duplicateIds?.length ?? 0;
+
       set((state) => ({
-        pendingOperations: [],
+        pendingOperations: remaining,
         syncStatus: navigator.onLine ? "online" : "offline",
         lastSyncAt: new Date().toISOString(),
+        syncLogs: appendSyncLog(state, {
+          status: remaining.length > 0 ? "partial" : "success",
+          accepted: acceptedCount,
+          duplicates: duplicateCount,
+          remaining: remaining.length,
+          message: result.note ?? "تمت المزامنة"
+        }),
         auditEvents: [
           audit(
             "Offline queue synchronized",
-            `${result.accepted ?? pending.length} operations${result.note ? ` — ${result.note}` : ""}`
+            `مقبول ${acceptedCount}، مكرر ${duplicateCount}، متبقي ${remaining.length}${result.note ? ` — ${result.note}` : ""}`
           ),
           ...state.auditEvents
         ]
@@ -440,6 +518,13 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     } catch {
       set((state) => ({
         syncStatus: navigator.onLine ? "online" : "offline",
+        syncLogs: appendSyncLog(state, {
+          status: "failed",
+          accepted: 0,
+          duplicates: 0,
+          remaining: pending.length,
+          message: "تعذر الاتصال بالخادم"
+        }),
         auditEvents: [audit("Sync failed", "تعذر الاتصال بالخادم — ستُعاد المحاولة لاحقاً"), ...state.auditEvents]
       }));
     }

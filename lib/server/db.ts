@@ -69,6 +69,11 @@ export interface PasswordResetToken {
   used: boolean;
 }
 
+export interface SyncReceipt {
+  key: string;
+  at: string;
+}
+
 export interface ServerDb {
   users: DbUser[];
   sessions: DbSession[];
@@ -79,6 +84,8 @@ export interface ServerDb {
   branches: string[];
   setupCompleted: boolean;
   registrationOpen: boolean;
+  /** Idempotency keys for offline sync pushes (device + client operation id). */
+  syncReceipts?: SyncReceipt[];
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -116,6 +123,7 @@ function normalizeDb(db: ServerDb): ServerDb {
   db.adminNotifications = db.adminNotifications ?? [];
   db.branches = db.branches?.length ? db.branches : [...emptyDb.branches];
   db.registrationOpen = db.registrationOpen ?? true;
+  db.syncReceipts = db.syncReceipts ?? [];
   db.users = db.users.map((user) => ({
     ...user,
     phone: user.phone ?? "",

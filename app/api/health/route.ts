@@ -9,6 +9,8 @@ export function GET() {
       api: "ok",
       database: "configure POSTGRES_URL in production",
       offlineQueue: "client IndexedDB enabled",
+      pwa: "manifest.webmanifest + service worker /sw.js",
+      syncIdempotency: "device-scoped operation receipts",
       ownership: "self-hosted, no SaaS subscription model"
     }
   });

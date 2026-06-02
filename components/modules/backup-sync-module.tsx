@@ -13,6 +13,7 @@ export function BackupSyncModule() {
   const syncStatus = useShowroomStore((s) => s.syncStatus);
   const pendingOperations = useShowroomStore((s) => s.pendingOperations);
   const lastSyncAt = useShowroomStore((s) => s.lastSyncAt);
+  const syncLogs = useShowroomStore((s) => s.syncLogs);
   const synchronize = useShowroomStore((s) => s.synchronize);
   const resetLocalShowroomData = useShowroomStore((s) => s.resetLocalShowroomData);
   const vehicles = useShowroomStore((s) => s.vehicles);
@@ -113,6 +114,46 @@ export function BackupSyncModule() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="luxury-panel rounded-[2rem] p-5">
+        <h3 className="font-bold text-white">سجل المزامنة</h3>
+        {syncLogs.length === 0 ? (
+          <p className="mt-2 text-sm text-white/55">لا توجد محاولات مزامنة مسجّلة بعد.</p>
+        ) : (
+          <ul className="mt-3 max-h-48 space-y-2 overflow-auto text-sm">
+            {syncLogs.slice(0, 12).map((row) => (
+              <li key={row.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <div className="flex flex-wrap justify-between gap-2">
+                  <span className="text-white/80">{row.message}</span>
+                  <span
+                    className={
+                      row.status === "success"
+                        ? "text-emerald-300"
+                        : row.status === "partial"
+                          ? "text-amber-300"
+                          : "text-red-300"
+                    }
+                  >
+                    {row.status === "success"
+                      ? "نجاح"
+                      : row.status === "partial"
+                        ? "جزئي"
+                        : "فشل"}
+                  </span>
+                </div>
+                <p className="text-xs text-white/45">
+                  مقبول {row.accepted} · مكرر {row.duplicates} · متبقي {row.remaining} —{" "}
+                  {formatDateTime(row.at)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-xs text-white/45">
+          PWA: من المتصفح على iPhone استخدم «إضافة إلى الشاشة الرئيسية». على Android/Chrome يظهر
+          زر التثبيت عند توفره.
+        </p>
       </section>
 
       <section className="luxury-panel rounded-[2rem] p-5">

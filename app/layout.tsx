@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PrintRootHost } from "@/components/print/print-root-host";
+import { NetworkSyncBootstrap } from "@/components/network-sync-bootstrap";
 import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <body className="rtl-support antialiased">
         <PwaRegister />
+        <NetworkSyncBootstrap />
         <PrintRootHost />
         {children}
       </body>
