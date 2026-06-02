@@ -259,6 +259,125 @@ class VehicleDocumentDeleteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _public_status_for_vehicle(vehicle: Vehicle) -> str:
+    if vehicle.status == VehicleStatus.SOLD:
+        return "sold"
+    if vehicle.status == VehicleStatus.AVAILABLE:
+        return "available"
+    if vehicle.status == VehicleStatus.RESERVED:
+        return "reserved"
+    return "unavailable"
+
+
+def _public_vehicle_list_item(vehicle: Vehicle) -> dict:
+    first_image = vehicle.images.order_by("sort_order", "created_at").first()
+    status = _public_status_for_vehicle(vehicle)
+    return {
+        "id": str(vehicle.id),
+        "manufacturer": vehicle.manufacturer,
+        "model": vehicle.model,
+        "trim": vehicle.trim,
+        "year": vehicle.year,
+        "exterior_color": vehicle.exterior_color,
+        "fuel_type": vehicle.fuel_type,
+        "transmission": vehicle.transmission,
+        "mileage": vehicle.mileage,
+        "branch": vehicle.branch_name,
+        "status": status,
+        "sale_price": str(vehicle.sale_price),
+        "thumbnail": first_image.data_url if first_image else None,
+    }
+
+
+def _public_vehicle_detail(vehicle: Vehicle) -> dict:
+    status = _public_status_for_vehicle(vehicle)
+    images = [
+        {
+            "id": str(img.id),
+            "caption": img.caption,
+            "data_url": img.data_url,
+        }
+        for img in vehicle.images.order_by("sort_order", "created_at")
+    ]
+    payload = {
+        "id": str(vehicle.id),
+        "manufacturer": vehicle.manufacturer,
+        "model": vehicle.model,
+        "trim": vehicle.trim,
+        "year": vehicle.year,
+        "exterior_color": vehicle.exterior_color,
+        "interior_color": vehicle.interior_color,
+        "fuel_type": vehicle.fuel_type,
+        "transmission": vehicle.transmission,
+        "mileage": vehicle.mileage,
+        "branch": vehicle.branch_name,
+        "status": status,
+        "show_sale_price": status == "available",
+        "sale_price": str(vehicle.sale_price) if status == "available" else None,
+        "images": images,
+    }
+    return payload
+
+
+class VehiclePublicCatalogView(APIView):
+    """Public showroom catalog — available vehicles only (no auth)."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        qs = (
+            Vehicle.objects.filter(is_archived=False, status=VehicleStatus.AVAILABLE)
+            .prefetch_related("images")
+            .order_by("-created_at")
+        )
+        q = (request.query_params.get("q") or "").strip()
+        if q:
+            qs = qs.filter(
+                Q(manufacturer__icontains=q)
+                | Q(model__icontains=q)
+                | Q(trim__icontains=q)
+                | Q(exterior_color__icontains=q)
+            )
+        branch = (request.query_params.get("branch") or "").strip()
+        if branch:
+            qs = qs.filter(branch_name__icontains=branch)
+        try:
+            limit = min(int(request.query_params.get("limit", "48")), 100)
+        except ValueError:
+            limit = 48
+        vehicles = list(qs[:limit])
+        return Response(
+            {
+                "count": len(vehicles),
+                "vehicles": [_public_vehicle_list_item(v) for v in vehicles],
+            }
+        )
+
+
+class VehiclePublicDetailView(APIView):
+    """Public vehicle detail for customer showroom (no internal costs)."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request, vehicle_id):
+        try:
+            vehicle = (
+                Vehicle.objects.filter(pk=vehicle_id, is_archived=False)
+                .prefetch_related("images")
+                .get()
+            )
+        except Vehicle.DoesNotExist:
+            return Response({"detail": "السيارة غير موجودة."}, status=404)
+        if vehicle.status != VehicleStatus.AVAILABLE:
+            return Response(
+                {"detail": "هذه السيارة غير معروضة للبيع حالياً."},
+                status=404,
+            )
+        return Response(_public_vehicle_detail(vehicle))
+
+
 class VehiclePublicVerifyView(APIView):
     """Public read-only vehicle summary for QR verify page (no auth)."""
 
@@ -270,12 +389,7 @@ class VehiclePublicVerifyView(APIView):
             vehicle = Vehicle.objects.filter(pk=vehicle_id, is_archived=False).get()
         except Vehicle.DoesNotExist:
             return Response({"detail": "السيارة غير موجودة."}, status=404)
-        if vehicle.status == VehicleStatus.SOLD:
-            public_status = "sold"
-        elif vehicle.status in (VehicleStatus.AVAILABLE, VehicleStatus.RESERVED):
-            public_status = vehicle.status
-        else:
-            public_status = "unavailable"
+        public_status = _public_status_for_vehicle(vehicle)
         return Response(
             {
                 "id": str(vehicle.id),

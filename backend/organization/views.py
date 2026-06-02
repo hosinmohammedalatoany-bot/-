@@ -12,6 +12,25 @@ from .models import CompanyProfile
 from .serializers import BranchSerializer, CompanyProfileSerializer
 
 
+class CompanyPublicView(APIView):
+    """Public company snippet for customer showroom (no sensitive fields)."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request):
+        profile = CompanyProfile.load()
+        return Response(
+            {
+                "company_name": profile.company_name,
+                "address": profile.address,
+                "phone": profile.phone,
+                "currency": profile.currency,
+                "logo_data_url": profile.logo_data_url or None,
+            }
+        )
+
+
 class CompanyProfileView(APIView):
     permission_classes = [IsAuthenticatedActive, require_module("settings")]
 

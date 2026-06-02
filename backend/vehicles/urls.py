@@ -7,11 +7,19 @@ from .views import (
     VehicleImageDeleteView,
     VehicleImageListCreateView,
     VehicleListCreateView,
+    VehiclePublicCatalogView,
+    VehiclePublicDetailView,
     VehiclePublicVerifyView,
     VehicleStatusView,
 )
 
 urlpatterns = [
+    path("public/", VehiclePublicCatalogView.as_view(), name="vehicle-public-catalog"),
+    path(
+        "public/<uuid:vehicle_id>/",
+        VehiclePublicDetailView.as_view(),
+        name="vehicle-public-detail",
+    ),
     path("", VehicleListCreateView.as_view(), name="vehicle-list"),
     path("<uuid:vehicle_id>/", VehicleDetailView.as_view(), name="vehicle-detail"),
     path("<uuid:vehicle_id>/status/", VehicleStatusView.as_view(), name="vehicle-status"),
