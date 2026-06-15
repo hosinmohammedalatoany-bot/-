@@ -10,14 +10,16 @@
 
 | الاستخدام | الرابط |
 |-----------|--------|
-| **الرابط العام** | انسخ من مخرجات `npm run tunnel` (سطر `*.trycloudflare.com`) |
-| تسجيل الدخول | `{ORIGIN}/login` |
-| التسجيل (أول حساب عبر `/setup` = مدير النظام) | `{ORIGIN}/register` |
-| الإعداد الأول | `{ORIGIN}/setup` |
-| لوحة التحكم | `{ORIGIN}/dashboard/dashboard` |
-| معرض السيارات العام | `{ORIGIN}/showroom` |
+| **الرابط العام (نشط الآن)** | `https://bristol-violin-guardian-happened.trycloudflare.com` |
+| تسجيل الدخول | https://bristol-violin-guardian-happened.trycloudflare.com/login |
+| التسجيل (أول حساب عبر `/setup` = مدير النظام) | https://bristol-violin-guardian-happened.trycloudflare.com/register |
+| الإعداد الأول | https://bristol-violin-guardian-happened.trycloudflare.com/setup |
+| لوحة التحكم | https://bristol-violin-guardian-happened.trycloudflare.com/dashboard/dashboard |
+| معرض السيارات العام | https://bristol-violin-guardian-happened.trycloudflare.com/showroom |
 
-مثال سابق (قد يكون منتهياً): `https://shannon-ran-envelope-feeding.trycloudflare.com` — **تحقق دائماً** من النفق الحالي.
+> **مهم:** روابط `*.trycloudflare.com` تتغيّر عند كل تشغيل لـ `npm run tunnel`. الرابط الحالي يُحفظ أيضاً في `.public-url` في جذر المشروع.
+
+مثال سابق (منتهي): `https://loan-organizations-humanitarian-grand.trycloudflare.com` — لا يعمل بعد إيقاف النفق.
 
 ## تشغيل النفق (إنتاج — مطلوب للهاتف)
 
@@ -35,7 +37,14 @@ HOSTNAME=0.0.0.0 PORT=3000 npm run start
 npm run tunnel
 ```
 
-أو أمر واحد للنفق: `npm run tunnel` يشغّل الإنتاج على المنفذ 3000 تلقائياً إن لم يكن يعمل.
+أو أمر واحد للنفق: `npm run tunnel` يشغّل **Django + Next إنتاج** على المنافذ 8000 و 3000 تلقائياً إن لم يكونا يعملان.
+
+**بدون Docker/Postgres:** أضف في `.env.local`:
+
+```env
+USE_SQLITE=true
+DJANGO_API_URL=http://127.0.0.1:8000
+```
 
 في `.env.local` (غير مُرفوع إلى Git):
 

@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 PORT="${PORT:-3000}"
+API_PORT="${API_PORT:-8000}"
 HOST="127.0.0.1"
 
 free_port() {
@@ -32,6 +33,28 @@ if ! command -v cloudflared >/dev/null 2>&1; then
   chmod +x "${TMP}/cloudflared"
   sudo mv "${TMP}/cloudflared" /usr/local/bin/cloudflared 2>/dev/null || mv "${TMP}/cloudflared" "${ROOT}/.bin/cloudflared"
   export PATH="${ROOT}/.bin:${PATH}"
+fi
+
+# Django API (required for login / BFF)
+if ! curl -sf "http://${HOST}:${API_PORT}/api/health/" >/dev/null 2>&1; then
+  echo "Starting Django API on port ${API_PORT}..."
+  DJANGO_SESSION="baraa-django-api"
+  tmux -f /exec-daemon/tmux.portal.conf kill-session -t "=${DJANGO_SESSION}" 2>/dev/null || true
+  tmux -f /exec-daemon/tmux.portal.conf new-session -d -s "${DJANGO_SESSION}" -c "$ROOT" -- "${SHELL:-bash}" -l
+  DJANGO_CMD="cd '$ROOT' && set -a && [ -f .env.local ] && . ./.env.local; set +a && npm run api:dev"
+  tmux -f /exec-daemon/tmux.portal.conf send-keys -t "${DJANGO_SESSION}:0.0" "$DJANGO_CMD" C-m
+  for i in $(seq 1 30); do
+    if curl -sf "http://${HOST}:${API_PORT}/api/health/" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 1
+  done
+fi
+
+if ! curl -sf "http://${HOST}:${API_PORT}/api/health/" >/dev/null 2>&1; then
+  echo "ERROR: Django API not responding on http://${HOST}:${API_PORT}/api/health/"
+  echo "Tip: set USE_SQLITE=true in .env.local when Postgres is not running."
+  exit 1
 fi
 
 if pgrep -f "next dev" >/dev/null 2>&1 || pgrep -f "next start" >/dev/null 2>&1; then
@@ -83,19 +106,32 @@ for i in $(seq 1 45); do
     echo "=============================================="
     echo ""
     DJANGO_URL="${DJANGO_API_URL:-http://127.0.0.1:8000}"
+    USE_SQLITE_VAL=""
+    VERIFY_EMAIL_VAL="true"
     if [ -f "${ROOT}/.env.local" ]; then
       existing="$(grep -E '^DJANGO_API_URL=' "${ROOT}/.env.local" 2>/dev/null | head -1 || true)"
       if [ -n "$existing" ]; then
         DJANGO_URL="${existing#DJANGO_API_URL=}"
       fi
+      existing="$(grep -E '^USE_SQLITE=' "${ROOT}/.env.local" 2>/dev/null | head -1 || true)"
+      if [ -n "$existing" ]; then
+        USE_SQLITE_VAL="${existing#USE_SQLITE=}"
+      fi
+      existing="$(grep -E '^VERIFY_EMAIL_IN_RESPONSE=' "${ROOT}/.env.local" 2>/dev/null | head -1 || true)"
+      if [ -n "$existing" ]; then
+        VERIFY_EMAIL_VAL="${existing#VERIFY_EMAIL_IN_RESPONSE=}"
+      fi
     fi
-    cat > "${ROOT}/.env.local" <<EOF
-# Cloudflare quick tunnel — origin is also detected from each request (no restart required for links)
-NEXT_PUBLIC_PUBLIC_BASE_URL=$URL
-NEXT_PUBLIC_APP_URL=$URL
-DJANGO_API_URL=$DJANGO_URL
-VERIFY_EMAIL_IN_RESPONSE=true
-EOF
+    {
+      echo "# Cloudflare quick tunnel — origin is also detected from each request (no restart required for links)"
+      echo "NEXT_PUBLIC_PUBLIC_BASE_URL=$URL"
+      echo "NEXT_PUBLIC_APP_URL=$URL"
+      echo "DJANGO_API_URL=$DJANGO_URL"
+      if [ -n "$USE_SQLITE_VAL" ]; then
+        echo "USE_SQLITE=$USE_SQLITE_VAL"
+      fi
+      echo "VERIFY_EMAIL_IN_RESPONSE=$VERIFY_EMAIL_VAL"
+    } > "${ROOT}/.env.local"
     echo "تم حفظ .env.local (PUBLIC_BASE_URL + APP_URL)."
     echo "الروابط والجلسات تستخدم origin الحالي تلقائياً — إعادة التشغيل اختيارية."
     echo ""
@@ -103,6 +139,9 @@ EOF
     echo "  $URL/login"
     echo "  $URL/setup  (أول مرة)"
     echo "  $URL/dashboard/dashboard"
+    echo ""
+    echo "$URL" > "${ROOT}/.public-url"
+    echo "Saved active URL to .public-url"
     echo ""
     # Keep tunnel running
     wait $CF_PID

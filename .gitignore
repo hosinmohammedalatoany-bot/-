@@ -6,4 +6,5 @@ tsconfig.tsbuildinfo
 .env
 .env.*
 !.env.example
+.public-url
 data/
