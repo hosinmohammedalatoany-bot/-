@@ -6,17 +6,15 @@ This project is not SaaS and contains no subscription or pricing-plan logic.
 
 ## Stack
 
-- Next.js 15
+- Next.js 15 (frontend + PWA)
 - TypeScript
 - Tailwind CSS
 - shadcn-style UI primitives
-- React Query dependency for API sync expansion
-- Zustand offline store
-- React Hook Form
-- Zod validation
-- Framer Motion
-- IndexedDB offline persistence
-- PostgreSQL schema in `docs/DATABASE_SCHEMA.sql`
+- Django + Django REST Framework (API)
+- PostgreSQL (production) / SQLite (local dev)
+- JWT (SimpleJWT) — see `backend/`
+- Zustand offline store + IndexedDB
+- PostgreSQL baseline schema in `docs/DATABASE_SCHEMA.sql`
 
 ## Run
 
@@ -24,6 +22,31 @@ This project is not SaaS and contains no subscription or pricing-plan logic.
 npm install
 npm run dev
 ```
+
+التطبيق يستمع على `0.0.0.0:3000` (مناسب للشبكة المحلية والنشر).
+
+### API (Django)
+
+```bash
+cd backend && cp .env.example .env
+# للتطوير بدون Postgres: echo USE_SQLITE=true >> .env
+pip install -r requirements.txt
+npm run api:migrate
+npm run api:dev
+```
+
+تفاصيل: `docs/BACKEND_SETUP.md` — الصحة: `http://127.0.0.1:8000/api/health/`
+
+## رابط عام (HTTPS) — مؤقت عبر Cloudflare
+
+```bash
+npm run build
+npm run tunnel
+```
+
+سيُعرض رابط مثل `https://xxxx.trycloudflare.com`. انسخه إلى `.env.local` كـ `NEXT_PUBLIC_APP_URL` ثم أعد تشغيل السيرفر.
+
+تفاصيل النشر على VPS: `docs/DEPLOY_PUBLIC_URL.md`
 
 ## Verify
 

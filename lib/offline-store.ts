@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import {
   type AuditEvent,
+  type PrintedDocument,
   type Customer,
   type Expense,
   type Installment,
@@ -33,9 +34,21 @@ import {
 } from "@/lib/validation";
 
 const DB_NAME = "baraa-raed-offline-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "state";
+const SYNC_LOG_STORE = "sync_logs";
 const STATE_KEY = "dashboard";
+const MAX_SYNC_LOG_ENTRIES = 80;
+
+export interface SyncLogEntry {
+  id: string;
+  at: string;
+  status: "success" | "partial" | "failed";
+  accepted: number;
+  duplicates: number;
+  remaining: number;
+  message: string;
+}
 
 interface PersistedState {
   vehicles: Vehicle[];
@@ -47,6 +60,8 @@ interface PersistedState {
   invoices: Invoice[];
   pendingOperations: PendingOperation[];
   auditEvents: AuditEvent[];
+  printedDocuments: PrintedDocument[];
+  syncLogs: SyncLogEntry[];
   lastSyncAt?: string;
 }
 
@@ -68,6 +83,16 @@ interface ShowroomState extends PersistedState {
   attachLocalFile: (entityLabel: string) => void;
   setNetworkStatus: (online: boolean) => void;
   synchronize: () => Promise<void>;
+  recordPrint: (documentType: string, documentNumber: string, branch?: string) => void;
+  deleteVehicle: (vehicleId: string) => { ok: true } | { ok: false; message: string };
+  deleteCustomer: (customerId: string) => { ok: true } | { ok: false; message: string };
+  deleteLead: (leadId: string) => { ok: true } | { ok: false; message: string };
+  deleteReservation: (reservationId: string) => { ok: true } | { ok: false; message: string };
+  deleteInvoice: (invoiceId: string) => { ok: true } | { ok: false; message: string };
+  deleteExpense: (expenseId: string) => { ok: true } | { ok: false; message: string };
+  deleteInstallment: (installmentId: string) => { ok: true } | { ok: false; message: string };
+  deletePrintedDocument: (documentId: string) => { ok: true } | { ok: false; message: string };
+  resetLocalShowroomData: () => Promise<void>;
 }
 
 const baseState: PersistedState = {
@@ -80,6 +105,24 @@ const baseState: PersistedState = {
   invoices: seedInvoices,
   pendingOperations: [],
   auditEvents: seedAuditEvents,
+  printedDocuments: [],
+  syncLogs: [],
+  lastSyncAt: undefined
+};
+
+/** Empty showroom data (no demo/seed records). */
+export const factoryEmptyState: PersistedState = {
+  vehicles: [],
+  customers: [],
+  leads: [],
+  installments: [],
+  expenses: [],
+  reservations: [],
+  invoices: [],
+  pendingOperations: [],
+  auditEvents: [],
+  printedDocuments: [],
+  syncLogs: [],
   lastSyncAt: undefined
 };
 
@@ -94,6 +137,9 @@ function openDatabase() {
       const db = request.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME);
+      }
+      if (!db.objectStoreNames.contains(SYNC_LOG_STORE)) {
+        db.createObjectStore(SYNC_LOG_STORE, { keyPath: "id" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -142,6 +188,8 @@ function snapshot(state: ShowroomState): PersistedState {
     invoices: state.invoices,
     pendingOperations: state.pendingOperations,
     auditEvents: state.auditEvents,
+    printedDocuments: state.printedDocuments ?? [],
+    syncLogs: state.syncLogs ?? [],
     lastSyncAt: state.lastSyncAt
   };
 }
@@ -156,6 +204,23 @@ function queue(operation: QueueOperation, entityLabel: string, entityId: string,
     createdAt: new Date().toISOString(),
     attempts: 0
   };
+}
+
+/** Keep newest pending op per operation+entity (avoids duplicate pushes after reconnect). */
+function enqueuePending(pending: PendingOperation[], op: PendingOperation): PendingOperation[] {
+  const filtered = pending.filter(
+    (item) => !(item.operation === op.operation && item.entityId === op.entityId)
+  );
+  return [op, ...filtered];
+}
+
+function appendSyncLog(state: PersistedState, entry: Omit<SyncLogEntry, "id" | "at">): SyncLogEntry[] {
+  const row: SyncLogEntry = {
+    id: createId("sync"),
+    at: new Date().toISOString(),
+    ...entry
+  };
+  return [row, ...(state.syncLogs ?? [])].slice(0, MAX_SYNC_LOG_ENTRIES);
 }
 
 function audit(action: string, target: string): AuditEvent {
@@ -177,12 +242,25 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   setSelectedModule: (module) => set({ selectedModule: module }),
   hydrate: async () => {
     const persisted = await readPersistedState();
-    set({ ...(persisted ?? baseState), isHydrated: true, syncStatus: navigator.onLine ? "online" : "offline" });
+    set({
+      ...(persisted ?? baseState),
+      printedDocuments: persisted?.printedDocuments ?? [],
+      isHydrated: true,
+      syncStatus: navigator.onLine ? "online" : "offline"
+    });
   },
   addVehicle: (input) => {
-    const duplicate = get().vehicles.some((vehicle) => vehicle.vin.toUpperCase() === input.vin.toUpperCase());
-    if (duplicate) {
-      const message = `Duplicate VIN blocked: ${input.vin}`;
+    const duplicateVin = get().vehicles.some((vehicle) => vehicle.vin.toUpperCase() === input.vin.toUpperCase());
+    if (duplicateVin) {
+      const message = `رقم VIN مكرر: ${input.vin}`;
+      set((state) => ({ conflictMessages: [message, ...state.conflictMessages].slice(0, 6) }));
+      return { ok: false, message };
+    }
+    const duplicateInternal = get().vehicles.some(
+      (vehicle) => vehicle.internalNumber.trim().toLowerCase() === input.internalNumber.trim().toLowerCase()
+    );
+    if (duplicateInternal) {
+      const message = `الرقم الداخلي مكرر: ${input.internalNumber}`;
       set((state) => ({ conflictMessages: [message, ...state.conflictMessages].slice(0, 6) }));
       return { ok: false, message };
     }
@@ -242,7 +320,7 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
     const lead: Lead = {
       id: createId("lead"),
       ...input,
-      status: "new",
+      status: "interested",
       note: input.note ?? "",
       nextFollowUp: new Date(Date.now() + 86400000).toISOString()
     };
@@ -332,18 +410,359 @@ export const useShowroomStore = create<ShowroomState>((set, get) => ({
   },
   setNetworkStatus: (online) => set({ syncStatus: online ? "online" : "offline" }),
   synchronize: async () => {
-    if (get().syncStatus === "offline") {
+    if (get().syncStatus === "offline" || get().syncStatus === "syncing") {
+      return;
+    }
+
+    const seenKeys = new Set<string>();
+    const pending = get().pendingOperations.filter((op) => {
+      const key = `${op.operation}::${op.entityId}`;
+      if (seenKeys.has(key)) {
+        return false;
+      }
+      seenKeys.add(key);
+      return true;
+    });
+
+    if (pending.length !== get().pendingOperations.length) {
+      set({ pendingOperations: pending });
+    }
+
+    if (pending.length === 0) {
+      set({ syncStatus: navigator.onLine ? "online" : "offline" });
       return;
     }
 
     set({ syncStatus: "syncing" });
-    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    try {
+      const deviceId =
+        typeof localStorage !== "undefined"
+          ? (localStorage.getItem("br_device_id") ??
+            (() => {
+              const id = `dev-${crypto.randomUUID().slice(0, 8)}`;
+              localStorage.setItem("br_device_id", id);
+              return id;
+            })())
+          : "web-client";
+
+      const response = await fetch("/api/sync", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          operations: pending.map((op) => ({
+            id: op.id,
+            operation: op.operation,
+            entityId: op.entityId,
+            payload: op.payload,
+            createdAt: op.createdAt
+          }))
+        })
+      });
+
+      if (response.status === 401) {
+        set((state) => ({
+          syncStatus: navigator.onLine ? "online" : "offline",
+          syncLogs: appendSyncLog(state, {
+            status: "failed",
+            accepted: 0,
+            duplicates: 0,
+            remaining: pending.length,
+            message: "انتهت الجلسة — سجّل الدخول ثم أعد المزامنة"
+          }),
+          auditEvents: [
+            audit("Sync failed — session expired", "يرجى تسجيل الدخول من جديد"),
+            ...state.auditEvents
+          ]
+        }));
+        void persistState(snapshot(get()));
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(`sync ${response.status}`);
+      }
+
+      const result = (await response.json()) as {
+        accepted?: number;
+        acceptedIds?: string[];
+        duplicateIds?: string[];
+        note?: string;
+      };
+      const settled = new Set([...(result.acceptedIds ?? []), ...(result.duplicateIds ?? [])]);
+      const remaining = pending.filter((op) => !settled.has(op.id));
+      const acceptedCount = result.acceptedIds?.length ?? result.accepted ?? 0;
+      const duplicateCount = result.duplicateIds?.length ?? 0;
+
+      set((state) => ({
+        pendingOperations: remaining,
+        syncStatus: navigator.onLine ? "online" : "offline",
+        lastSyncAt: new Date().toISOString(),
+        syncLogs: appendSyncLog(state, {
+          status: remaining.length > 0 ? "partial" : "success",
+          accepted: acceptedCount,
+          duplicates: duplicateCount,
+          remaining: remaining.length,
+          message: result.note ?? "تمت المزامنة"
+        }),
+        auditEvents: [
+          audit(
+            "Offline queue synchronized",
+            `مقبول ${acceptedCount}، مكرر ${duplicateCount}، متبقي ${remaining.length}${result.note ? ` — ${result.note}` : ""}`
+          ),
+          ...state.auditEvents
+        ]
+      }));
+    } catch {
+      set((state) => ({
+        syncStatus: navigator.onLine ? "online" : "offline",
+        syncLogs: appendSyncLog(state, {
+          status: "failed",
+          accepted: 0,
+          duplicates: 0,
+          remaining: pending.length,
+          message: "تعذر الاتصال بالخادم"
+        }),
+        auditEvents: [audit("Sync failed", "تعذر الاتصال بالخادم — ستُعاد المحاولة لاحقاً"), ...state.auditEvents]
+      }));
+    }
+
+    void persistState(snapshot(get()));
+  },
+  recordPrint: (documentType, documentNumber, branch = "الفرع الرئيسي") => {
+    const existing = get().printedDocuments.find((p) => p.documentNumber === documentNumber && p.documentType === documentType);
+    const entry: PrintedDocument = existing
+      ? {
+          ...existing,
+          printCount: existing.printCount + 1,
+          printedAt: new Date().toISOString(),
+          status: "success"
+        }
+      : {
+          id: createId("prt"),
+          documentType,
+          documentNumber,
+          branch,
+          printCount: 1,
+          status: "success",
+          printedAt: new Date().toISOString(),
+          actor: "Current User"
+        };
     set((state) => ({
-      pendingOperations: [],
-      syncStatus: navigator.onLine ? "online" : "offline",
-      lastSyncAt: new Date().toISOString(),
-      auditEvents: [audit("Offline queue synchronized", `${state.pendingOperations.length} operations`), ...state.auditEvents]
+      printedDocuments: [
+        entry,
+        ...state.printedDocuments.filter((p) => p.id !== existing?.id)
+      ],
+      auditEvents: [audit("طباعة مستند", `${documentType} ${documentNumber}`), ...state.auditEvents]
     }));
     void persistState(snapshot(get()));
+  },
+  deleteVehicle: (vehicleId) => {
+    const vehicle = get().vehicles.find((item) => item.id === vehicleId);
+    if (!vehicle) {
+      return { ok: false, message: "السيارة غير موجودة" };
+    }
+    if (get().reservations.some((item) => item.vehicleId === vehicleId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد حجوزات مرتبطة بهذه السيارة" };
+    }
+    if (get().invoices.some((item) => item.vehicleId === vehicleId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد فواتير مرتبطة بهذه السيارة" };
+    }
+    if (get().installments.some((item) => item.vehicleId === vehicleId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد أقساط مرتبطة بهذه السيارة" };
+    }
+
+    set((state) => ({
+      vehicles: state.vehicles.filter((item) => item.id !== vehicleId),
+      pendingOperations: [
+        queue("vehicle.delete", vehicle.internalNumber, vehicleId, { id: vehicleId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Vehicle deleted", vehicle.internalNumber), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteCustomer: (customerId) => {
+    const customer = get().customers.find((item) => item.id === customerId);
+    if (!customer) {
+      return { ok: false, message: "العميل غير موجود" };
+    }
+    if (get().reservations.some((item) => item.customerId === customerId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد حجوزات مرتبطة بهذا العميل" };
+    }
+    if (get().invoices.some((item) => item.customerId === customerId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد فواتير مرتبطة بهذا العميل" };
+    }
+    if (get().installments.some((item) => item.customerId === customerId)) {
+      return { ok: false, message: "لا يمكن الحذف: توجد أقساط مرتبطة بهذا العميل" };
+    }
+
+    set((state) => ({
+      customers: state.customers.filter((item) => item.id !== customerId),
+      pendingOperations: [
+        queue("customer.delete", customer.name, customerId, { id: customerId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Customer deleted", customer.name), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteLead: (leadId) => {
+    const lead = get().leads.find((item) => item.id === leadId);
+    if (!lead) {
+      return { ok: false, message: "العميل المحتمل غير موجود" };
+    }
+
+    set((state) => ({
+      leads: state.leads.filter((item) => item.id !== leadId),
+      pendingOperations: [queue("lead.delete", lead.name, leadId, { id: leadId }), ...state.pendingOperations],
+      auditEvents: [audit("Lead deleted", lead.name), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteReservation: (reservationId) => {
+    const reservation = get().reservations.find((item) => item.id === reservationId);
+    if (!reservation) {
+      return { ok: false, message: "الحجز غير موجود" };
+    }
+
+    const vehicleId = reservation.vehicleId;
+    set((state) => {
+      const reservations = state.reservations.filter((item) => item.id !== reservationId);
+      const vehicle = state.vehicles.find((item) => item.id === vehicleId);
+      const stillReserved =
+        reservations.some((item) => item.vehicleId === vehicleId) ||
+        state.invoices.some((item) => item.vehicleId === vehicleId);
+      const vehicles =
+        vehicle?.status === "reserved" && !stillReserved
+          ? state.vehicles.map((item) =>
+              item.id === vehicleId
+                ? { ...item, status: "available" as const, updatedAt: new Date().toISOString() }
+                : item
+            )
+          : state.vehicles;
+
+      return {
+        reservations,
+        vehicles,
+        pendingOperations: [
+          queue("reservation.delete", reservation.id, reservationId, { id: reservationId }),
+          ...state.pendingOperations
+        ],
+        auditEvents: [audit("Reservation deleted", reservation.id), ...state.auditEvents]
+      };
+    });
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteInvoice: (invoiceId) => {
+    const invoice = get().invoices.find((item) => item.id === invoiceId);
+    if (!invoice) {
+      return { ok: false, message: "الفاتورة غير موجودة" };
+    }
+
+    const vehicleId = invoice.vehicleId;
+    set((state) => {
+      const invoices = state.invoices.filter((item) => item.id !== invoiceId);
+      const vehicle = state.vehicles.find((item) => item.id === vehicleId);
+      const stillSold =
+        invoices.some((item) => item.vehicleId === vehicleId) ||
+        state.reservations.some((item) => item.vehicleId === vehicleId);
+      const vehicles =
+        vehicle?.status === "sold" && !stillSold
+          ? state.vehicles.map((item) =>
+              item.id === vehicleId
+                ? { ...item, status: "available" as const, updatedAt: new Date().toISOString() }
+                : item
+            )
+          : state.vehicles;
+
+      return {
+        invoices,
+        vehicles,
+        pendingOperations: [
+          queue("invoice.delete", invoice.id, invoiceId, { id: invoiceId }),
+          ...state.pendingOperations
+        ],
+        auditEvents: [audit("Invoice deleted", invoice.id), ...state.auditEvents]
+      };
+    });
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteExpense: (expenseId) => {
+    const expense = get().expenses.find((item) => item.id === expenseId);
+    if (!expense) {
+      return { ok: false, message: "المصروف غير موجود" };
+    }
+
+    set((state) => ({
+      expenses: state.expenses.filter((item) => item.id !== expenseId),
+      pendingOperations: [
+        queue("expense.delete", expense.category, expenseId, { id: expenseId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Expense deleted", expense.category), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deleteInstallment: (installmentId) => {
+    const installment = get().installments.find((item) => item.id === installmentId);
+    if (!installment) {
+      return { ok: false, message: "القسط غير موجود" };
+    }
+
+    set((state) => ({
+      installments: state.installments.filter((item) => item.id !== installmentId),
+      pendingOperations: [
+        queue("installment.delete", installment.id, installmentId, { id: installmentId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Installment deleted", installment.id), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  deletePrintedDocument: (documentId) => {
+    const doc = get().printedDocuments.find((item) => item.id === documentId);
+    if (!doc) {
+      return { ok: false, message: "سجل الطباعة غير موجود" };
+    }
+
+    set((state) => ({
+      printedDocuments: state.printedDocuments.filter((item) => item.id !== documentId),
+      pendingOperations: [
+        queue("print.delete", doc.documentNumber, documentId, { id: documentId }),
+        ...state.pendingOperations
+      ],
+      auditEvents: [audit("Print log deleted", `${doc.documentType} ${doc.documentNumber}`), ...state.auditEvents]
+    }));
+    void persistState(snapshot(get()));
+    return { ok: true };
+  },
+  resetLocalShowroomData: async () => {
+    if (typeof indexedDB !== "undefined") {
+      const db = await openDatabase();
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        const request = store.delete(STATE_KEY);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }
+    set({
+      ...factoryEmptyState,
+      isHydrated: true,
+      conflictMessages: [],
+      syncStatus: typeof navigator !== "undefined" && navigator.onLine ? "online" : "offline"
+    });
+    await persistState(factoryEmptyState);
   }
 }));

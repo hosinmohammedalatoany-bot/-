@@ -41,13 +41,21 @@ export type EntityStatus =
 export type QueueOperation =
   | "vehicle.create"
   | "vehicle.update"
+  | "vehicle.delete"
   | "customer.create"
+  | "customer.delete"
   | "lead.create"
+  | "lead.delete"
   | "reservation.create"
+  | "reservation.delete"
   | "invoice.create"
+  | "invoice.delete"
   | "expense.create"
+  | "expense.delete"
   | "installment.payment"
-  | "file.attach";
+  | "installment.delete"
+  | "file.attach"
+  | "print.delete";
 
 export type SyncStatus = "online" | "offline" | "syncing";
 
@@ -92,6 +100,13 @@ export interface Customer {
   createdAt: string;
 }
 
+export type LeadPipelineStatus =
+  | "interested"
+  | "contact"
+  | "reserved"
+  | "purchased"
+  | "cancelled";
+
 export interface Lead {
   id: string;
   name: string;
@@ -99,7 +114,7 @@ export interface Lead {
   phone: string;
   assignedTo: string;
   vehicleId?: string;
-  status: Extract<EntityStatus, "new" | "contacted" | "interested" | "converted">;
+  status: LeadPipelineStatus;
   nextFollowUp: string;
   note: string;
 }
@@ -134,6 +149,7 @@ export interface Reservation {
 
 export interface Invoice {
   id: string;
+  documentNumber?: string;
   vehicleId: string;
   customerId: string;
   type: "cash" | "bank-transfer" | "installment" | "mixed";
@@ -160,6 +176,17 @@ export interface AuditEvent {
   action: string;
   target: string;
   createdAt: string;
+}
+
+export interface PrintedDocument {
+  id: string;
+  documentType: string;
+  documentNumber: string;
+  branch: string;
+  printCount: number;
+  status: "success" | "failed";
+  printedAt: string;
+  actor: string;
 }
 
 export const modules: Array<{
@@ -555,7 +582,7 @@ export const seedLeads: Lead[] = [
     phone: "+964 780 222 7788",
     assignedTo: "Ali R.",
     vehicleId: "veh-002",
-    status: "contacted",
+    status: "contact",
     nextFollowUp: new Date(Date.now() + 172800000).toISOString(),
     note: "Interested in hybrid vehicles under 25k."
   }

@@ -1,4 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { PrintRootHost } from "@/components/print/print-root-host";
+import { NetworkSyncBootstrap } from "@/components/network-sync-bootstrap";
+import { PwaRegister } from "@/components/pwa-register";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,8 +15,8 @@ export const metadata: Metadata = {
     title: "Baraa Raed"
   },
   icons: {
-    icon: "/brand/app-icon.svg",
-    apple: "/brand/app-icon.svg"
+    icon: [{ url: "/icon", type: "image/png" }],
+    apple: [{ url: "/apple-icon", type: "image/png" }]
   },
   manifest: "/manifest.webmanifest"
 };
@@ -31,8 +34,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr">
-      <body>{children}</body>
+    <html lang="ar" dir="rtl">
+      <body className="rtl-support antialiased">
+        <PwaRegister />
+        <NetworkSyncBootstrap />
+        <PrintRootHost />
+        {children}
+      </body>
     </html>
   );
 }
