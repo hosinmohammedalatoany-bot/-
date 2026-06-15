@@ -1,0 +1,11 @@
+{
+  "name": "Baraa Raid Salman Showroom",
+  "short_name": "Showroom",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#07111F",
+  "theme_color": "#0A2342",
+  "description": "Luxury offline-first showroom management app.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}

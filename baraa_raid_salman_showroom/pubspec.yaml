@@ -1,0 +1,25 @@
+name: baraa_raid_salman_showroom
+description: Luxury offline-first showroom management app for mobile and web.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  connectivity_plus: any
+  google_fonts: any
+  hive: any
+  hive_flutter: any
+  http: any
+  url_launcher: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: any
+
+flutter:
+  uses-material-design: true
