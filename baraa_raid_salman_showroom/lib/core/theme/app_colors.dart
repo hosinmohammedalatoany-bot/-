@@ -11,6 +11,8 @@ class AppColors {
   static const Color brushedSilver = Color(0xFFBFC5CE);
   static const Color glassWhite = Color(0x33FFFFFF);
   static const Color glassBorder = Color(0x66FFFFFF);
+  static const Color platinumGlow = Color(0x33E5E4E2);
+  static const Color navyGlow = Color(0xD9102A4C);
   static const Color success = Color(0xFF45D483);
   static const Color danger = Color(0xFFE85D75);
 }

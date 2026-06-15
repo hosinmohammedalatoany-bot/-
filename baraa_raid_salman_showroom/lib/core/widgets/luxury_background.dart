@@ -26,12 +26,12 @@ class LuxuryBackground extends StatelessWidget {
           Positioned(
             top: -90,
             right: -70,
-            child: _GlowOrb(color: AppColors.platinum.withOpacity(0.20)),
+            child: _GlowOrb(color: AppColors.platinumGlow),
           ),
           Positioned(
             bottom: -120,
             left: -90,
-            child: _GlowOrb(color: AppColors.deepNavy.withOpacity(0.85)),
+            child: _GlowOrb(color: AppColors.navyGlow),
           ),
           child,
         ],

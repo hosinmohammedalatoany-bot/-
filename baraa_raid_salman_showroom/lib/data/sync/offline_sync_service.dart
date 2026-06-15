@@ -55,7 +55,8 @@ class OfflineSyncService {
   }
 
   Future<bool> _send(PendingSyncItem item) async {
-    final url = _cloudBaseUrl.resolve(item.endpoint);
+    final endpoint = item.endpoint.replaceFirst(RegExp(r'^/+'), '');
+    final url = _cloudBaseUrl.resolve(endpoint);
     final headers = {'Content-Type': 'application/json'};
     final body = jsonEncode(item.payload);
     final response = switch (item.method.toUpperCase()) {

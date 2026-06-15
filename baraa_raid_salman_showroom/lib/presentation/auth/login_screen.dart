@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Icon(
+                              const Icon(
                                 Icons.directions_car_filled_rounded,
                                 color: AppColors.platinum,
                                 size: 56,
